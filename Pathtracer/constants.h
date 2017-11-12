@@ -21,6 +21,7 @@ namespace constants {
 
     /* World description */
     const glm::vec3 world_up(0.0f, 0.0f, 1.0f);
+    const float error = 1e-5;
 }
 
 #endif //PATHTRACER_CONSTANTS_H

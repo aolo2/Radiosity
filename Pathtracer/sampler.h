@@ -6,8 +6,8 @@
 // FIXME(aolo2): need non-static init for samplers
 namespace utils {
     /* Sampling */
-    std::random_device rd;
-    std::mt19937 mt(rd());
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
 }
 
 

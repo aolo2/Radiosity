@@ -1,5 +1,6 @@
 #include "file_utils.h"
 #include "camera.h"
+#include "radiance.h"
 
 using namespace utils;
 
@@ -8,6 +9,12 @@ int main() {
                                         constants::window_width * constants::window_height));
 
     camera cam(glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(0.0f));
+    scene scn("resources/materials.txt");
+
+    scn.add_object({{{glm::vec3(-1.0f, 0.0f, 0.0f),
+                      glm::vec3(0.0f, 0.0f, 1.0f),
+                      glm::vec3(1.0f, 0.0f, 0.0f)}},
+                    1});
 
     for (unsigned int y = 0; y < constants::window_height; y++) {
         for (unsigned int x = 0; x < constants::window_width; x++) {
@@ -15,7 +22,7 @@ int main() {
 
             for (unsigned int ray_id = 0; ray_id < constants::spp; ray_id++) {
                 ray r = cam.sample_pixel(x, y);
-                color += glm::vec3(0.5f); // FIXME(aolo2): actually trace here!
+                color += radiance(r, scn);
             }
 
             color *= constants::inv_spp;
@@ -27,7 +34,3 @@ int main() {
 
     return 0;
 }
-
-/* TODO: intersection code, model loading
-
- */
