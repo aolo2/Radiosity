@@ -1,6 +1,7 @@
 #ifndef PATHTRACER_SCENE_H
 #define PATHTRACER_SCENE_H
 
+
 #include <string>
 #include <vector>
 #include "ray.h"
@@ -16,7 +17,7 @@ namespace utils {
         glm::vec3 diffuse;
     };
 
-    std::vector<triangle> load_mesh(const std::string &file_path);
+    std::vector<object> load_mesh(const std::string &file_path);
 
     class scene {
     public:
@@ -31,9 +32,11 @@ namespace utils {
                    materials[i] : materials[0]; // fallback to background
         }
 
-        void add_object(const object& obj) {
+        void add_object(const object &obj) {
             objects.push_back(obj);
         }
+
+        void add_objects(std::vector<object> &&objs);
 
         void add_material(const material &mat) {
             materials.push_back(mat);
@@ -54,5 +57,6 @@ namespace utils {
     };
 
 }
+
 
 #endif //PATHTRACER_SCENE_H

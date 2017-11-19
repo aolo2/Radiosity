@@ -2,19 +2,18 @@
 #include "camera.h"
 #include "radiance.h"
 
+#include <iostream>
+
 using namespace utils;
 
 int main() {
     std::vector<glm::vec3> film(static_cast<unsigned long>(
                                         constants::window_width * constants::window_height));
 
-    camera cam(glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(0.0f));
+    camera cam(glm::vec3(278.0f, -800.0f, 273.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     scene scn("resources/materials.txt");
 
-    scn.add_object({{{glm::vec3(-1.0f, 0.0f, 0.0f),
-                      glm::vec3(0.0f, 0.0f, 1.0f),
-                      glm::vec3(1.0f, 0.0f, 0.0f)}},
-                    1});
+    scn.add_objects(load_mesh("resources/untitled.obj"));
 
     for (unsigned int y = 0; y < constants::window_height; y++) {
         for (unsigned int x = 0; x < constants::window_width; x++) {
@@ -28,6 +27,8 @@ int main() {
             color *= constants::inv_spp;
             m2d_write(film, x, y, color);
         }
+
+        std::cout << (float) y / constants::window_height * 100.0f << "%" << std::endl;
     }
 
     utils::write_ppm(film);

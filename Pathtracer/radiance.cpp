@@ -15,6 +15,7 @@ glm::vec3 simple_rt(const point &here, const glm::vec3 &towards,
     }
 
     utils::material mat_here = scene.get_material(here.materialID);
+
     if (mat_here.emit != glm::vec3(0.0f)) {
         return mat_here.emit; // TODO(aolo2): emissive surfaces should reflect too, but arteeefaaacts
     }
@@ -29,7 +30,7 @@ glm::vec3 simple_rt(const point &here, const glm::vec3 &towards,
     glm::vec3 tan_up = glm::cross(here.normal, tan_right);
 
     float phi = angle(utils::mt) * 2.0f;
-    float theta = angle(utils::mt) * 0.5f;
+    float theta = angle(utils::mt);
 
     float x = glm::sin(theta) * glm::cos(phi);
     float y = glm::sin(theta) * glm::sin(phi);
@@ -45,8 +46,7 @@ glm::vec3 simple_rt(const point &here, const glm::vec3 &towards,
     next_hit = scene.trace({here.position, next_ray});
 
     estimated_radiance += simple_rt(next_hit, -1.0f * next_ray, scene, depth + 1);
-
-//    estimated_radiance *= material.diffuse
+    estimated_radiance *= mat_here.diffuse;
 
     return estimated_radiance;
 }

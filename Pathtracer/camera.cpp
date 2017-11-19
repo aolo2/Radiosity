@@ -5,10 +5,10 @@
 #include <glm/glm.hpp>
 
 namespace utils {
-    camera::camera(const glm::vec3 &position, const glm::vec3 &target)
+    camera::camera(const glm::vec3 &position, const glm::vec3 &direction)
             : position(position), pixel_jitter(0.0f, 1.0f) {
 
-        z_axis = glm::normalize(position - target);
+        z_axis = glm::normalize(-1.0f * direction);
         x_axis = glm::normalize(glm::cross(constants::world_up, z_axis));
         y_axis = glm::normalize(glm::cross(z_axis, x_axis));
 
@@ -34,8 +34,8 @@ namespace utils {
         float x_jitter = pixel_jitter(utils::mt);
         float y_jitter = pixel_jitter(utils::mt);
 
-        float pixel_x = (static_cast<float>(x) + x_jitter / constants::window_width) * 2.0f - 1.0f;
-        float pixel_y = (static_cast<float>(y) + y_jitter / constants::window_height) * 2.0f - 1.0f;
+        float pixel_x = (static_cast<float>(x) + x_jitter) / constants::window_width * 2.0f - 1.0f;
+        float pixel_y = (static_cast<float>(y) + y_jitter) / constants::window_height * 2.0f - 1.0f;
 
         pixel_position = film_center
                          + pixel_x * x_axis * half_film_width

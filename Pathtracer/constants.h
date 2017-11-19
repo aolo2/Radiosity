@@ -12,7 +12,7 @@ namespace constants {
 
     /* Samples (tweak this to change quality) */
     const unsigned int max_bounces = 8;
-    const unsigned int spp = 16;
+    const unsigned int spp = 256;
     const float inv_spp = 1.0f / static_cast<float>(spp);
 
     /* Math */
