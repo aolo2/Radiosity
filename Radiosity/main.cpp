@@ -8,14 +8,14 @@
 
 const int WINDOW_WIDTH = 1024;
 const int WINDOW_HEIGHT = 1024;
-const float ERR = 1e-7;
+const float ERR = 1e-5;
 const float PI = 3.1415926f;
 const float FOV = 0.4366f * 2.0f / PI * 180.0f;
 const float ASPECT_RATIO = static_cast<float>(WINDOW_WIDTH) /
                            static_cast<float>(WINDOW_HEIGHT);
 
 const int FF_SAMPLES = 2;
-const int RAD_ITERATIONS = 2;
+const int RAD_ITERATIONS = 4;
 
 std::random_device rd;
 std::mt19937 mt(rd());
@@ -32,9 +32,9 @@ struct patch {
 };
 
 bool operator==(const patch &lhs, const patch &rhs) {
-    return (lhs.vertices[0] == rhs.vertices[0]
-            && lhs.vertices[1] == rhs.vertices[1]
-            && lhs.vertices[2] == rhs.vertices[2]);
+    return (glm::length(lhs.vertices[0] - rhs.vertices[0]) < ERR
+            && glm::length(lhs.vertices[1] - rhs.vertices[1]) < ERR
+            && glm::length(lhs.vertices[2] - rhs.vertices[2]) < ERR);
 }
 
 bool operator!=(const patch &lhs, const patch &rhs) {
@@ -147,6 +147,9 @@ glm::vec3 sample_point(const patch &p) {
                      + r2 * glm::sqrt(r1) * p.vertices[2]);
 }
 
+//float ni_1 = 0, ni_2 = 0, ni_3 = 0;
+//float pi = 0;
+
 bool interects(const ray &r, const patch &p) {
     glm::vec3 e1 = p.vertices[1] - p.vertices[0];
     glm::vec3 e2 = p.vertices[2] - p.vertices[0];
@@ -155,6 +158,7 @@ bool interects(const ray &r, const patch &p) {
     float det = glm::dot(e1, pvec);
 
     if (glm::abs(det) < ERR) {
+//        ni_1++;
         return false;
     }
 
@@ -163,6 +167,7 @@ bool interects(const ray &r, const patch &p) {
     float u = glm::dot(tvec, pvec) * inv_det;
 
     if (u < 0.0f || u > 1.0f) {
+//        ni_2++;
         return false;
     }
 
@@ -170,32 +175,54 @@ bool interects(const ray &r, const patch &p) {
     float v = glm::dot(r.direction, qvec) * inv_det;
 
     if (v < 0.0f || u + v > 1.0f) {
+//        ni_3++;
         return false;
     }
 
-
+//    pi++;
     return true;
 }
+
+float vis = 0, invis = 0;
 
 bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b, const std::vector<patch> &scene) {
     ray r = {};
     r.origin = a;
     r.direction = glm::normalize(b - a);
 
-    if (a.x == b.x
-        || a.y == b.y
-        || a.z == b.z) {
+    if ((glm::abs(a.x - b.x < ERR) && glm::abs(a.y - b.y < ERR))
+        || (glm::abs(a.x - b.x < ERR) && glm::abs(a.z - b.z < ERR))
+        || (glm::abs(a.y - b.y < ERR) && glm::abs(a.z - b.z < ERR))) {
         return false;
     }
 
     for (const auto &p : scene) {
         if (p != p_b) {
             if (interects(r, p)) {
+                invis++;
+
+
+                std::cout << "Ray: " << std::endl
+                          << "  origin: (" << a.x << ", " << a.y << ", " << a.z << ")" << std::endl
+                          << "  direction: (" << r.direction.x << ", " << r.direction.y << ", " << r.direction.z << ")"
+                          << std::endl;
+                std::cout << "Patch: " << std::endl
+                          << "  A: (" << p.vertices[0].x << ", " << p.vertices[0].y << ", " << p.vertices[0].z << ")"
+                          << std::endl
+                          << "  B: (" << p.vertices[1].x << ", " << p.vertices[1].y << ", " << p.vertices[1].z << ")"
+                          << std::endl
+                          << "  C: (" << p.vertices[2].x << ", " << p.vertices[2].y << ", " << p.vertices[2].z << ")"
+                          << std::endl;
+
+
+                std::cout << std::endl;
                 return false;
             }
         }
     }
+//FIXME: returns false almost always - investigate
 
+    vis++;
     return true;
 }
 
@@ -205,8 +232,10 @@ float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a, const glm::vec3 
     float denom = PI * glm::length(b - a) * glm::length(b - a);
     if (denom < ERR) { return 0.0f; }
 
-    bool visibility = visible(a, b, p_b, world); // world);
-    if (!visibility) { return 0.0f; }
+    if (!visible(a, b, p_b, world)) {
+        return 0.0f;
+    }
+
 
     glm::vec3 ab = glm::normalize(b - a);
     float cos_xy_na = glm::dot(ab, n_a);
@@ -224,11 +253,11 @@ float form_factor(const patch &here, const patch &there, std::vector<patch> &wor
 
     float here_prob = here.area / (here.area + there.area);
 
-    if (here_prob - 0.5f < ERR) {
-        if (here == there) {
-            return 0.0f;
-        }
-    }
+//    if (here_prob - 0.5f < ERR) {
+//        if (here == there) {
+//            return 0.0f;
+//        }
+//    }
 
     for (int i = 0; i < FF_SAMPLES; i++) {
         glm::vec3 point_here = sample_point(here);
@@ -236,7 +265,7 @@ float form_factor(const patch &here, const patch &there, std::vector<patch> &wor
 
         float p2p_ff = p2p_form_factor(point_here, here.normal, point_there, there, world);
 
-        if (p2p_ff < 0.0f) {
+        if (p2p_ff <= 0.0f) {
             continue;
         }
 
@@ -262,16 +291,16 @@ void iteration(std::vector<patch> &patches) {
 
         for (auto &p_other: patches) {
             rad_new += p_other.rad * form_factor(p, p_other, patches);
+//            printf("no_int=%.0f+%.0f+%.0f int=%.0f\n", ni_1, ni_2, ni_3, pi);
         }
 
         rad_new *= p.color;
         rad_new += p.emit;
 
         p.rad_new = rad_new;
-
-//        std::cout << "." << std::flush;
     }
 
+    std::cout << vis / (vis + invis) * 100 << "% visbile" << std::endl;
 
     for (auto &p : patches) {
         p.rad = p.rad_new;
@@ -325,7 +354,7 @@ int main() {
     const glm::mat4 proj = glm::perspective(glm::radians(FOV), ASPECT_RATIO, 1.0f, 10000.0f); // replace with real fov
     const glm::mat4 view = glm::translate(glm::mat4(), -1.0f * camera_pos); // replace
 
-    std::vector<patch> patches = load_mesh("models/untitled.obj");
+    std::vector<patch> patches = load_mesh("models/cornell_box.obj");
     std::vector<patch> patches_copy(patches);
 
 
