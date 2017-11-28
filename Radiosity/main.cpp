@@ -14,8 +14,8 @@ const float FOV = 0.4366f * 2.0f / PI * 180.0f;
 const float ASPECT_RATIO = static_cast<float>(WINDOW_WIDTH) /
                            static_cast<float>(WINDOW_HEIGHT);
 
-const int FF_SAMPLES = 2;
-const int RAD_ITERATIONS = 4;
+const int FF_SAMPLES = 16;
+const int RAD_ITERATIONS = 16;
 
 std::random_device rd;
 std::mt19937 mt(rd());
@@ -99,12 +99,12 @@ std::vector<patch> load_mesh(const std::string &path) {
                 p.vertices[v] = glm::vec3(
                         attrib.vertices[3 * idx.vertex_index + 0],
                         attrib.vertices[3 * idx.vertex_index + 1],
-                        -1.0f * attrib.vertices[3 * idx.vertex_index + 2]);
+                        attrib.vertices[3 * idx.vertex_index + 2]);
 
                 p.normal = glm::vec3(
                         attrib.normals[3 * idx.normal_index + 0],
                         attrib.normals[3 * idx.normal_index + 1],
-                        -1.0f * attrib.normals[3 * idx.normal_index + 2]);
+                        attrib.normals[3 * idx.normal_index + 2]);
             }
 
             /* Materials */
@@ -128,6 +128,8 @@ std::vector<patch> load_mesh(const std::string &path) {
                     materials[current_material_id].ambient[1],
                     materials[current_material_id].ambient[2]);
 
+//            p.rad = p.color;
+
             patches.push_back(p);
 
             index_offset += fv;
@@ -150,7 +152,7 @@ glm::vec3 sample_point(const patch &p) {
 //float ni_1 = 0, ni_2 = 0, ni_3 = 0;
 //float pi = 0;
 
-bool interects(const ray &r, const patch &p) {
+float interect(const ray &r, const patch &p) {
     glm::vec3 e1 = p.vertices[1] - p.vertices[0];
     glm::vec3 e2 = p.vertices[2] - p.vertices[0];
 
@@ -159,7 +161,7 @@ bool interects(const ray &r, const patch &p) {
 
     if (glm::abs(det) < ERR) {
 //        ni_1++;
-        return false;
+        return -1.0f;
     }
 
     float inv_det = 1.0f / det;
@@ -168,7 +170,7 @@ bool interects(const ray &r, const patch &p) {
 
     if (u < 0.0f || u > 1.0f) {
 //        ni_2++;
-        return false;
+        return -1.0f;
     }
 
     glm::vec3 qvec = glm::cross(tvec, e1);
@@ -176,11 +178,10 @@ bool interects(const ray &r, const patch &p) {
 
     if (v < 0.0f || u + v > 1.0f) {
 //        ni_3++;
-        return false;
+        return -1.0f;
     }
 
-//    pi++;
-    return true;
+    return glm::dot(e2, qvec) * inv_det;
 }
 
 float vis = 0, invis = 0;
@@ -190,34 +191,36 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b, const std
     r.origin = a;
     r.direction = glm::normalize(b - a);
 
-    if ((glm::abs(a.x - b.x < ERR) && glm::abs(a.y - b.y < ERR))
-        || (glm::abs(a.x - b.x < ERR) && glm::abs(a.z - b.z < ERR))
-        || (glm::abs(a.y - b.y < ERR) && glm::abs(a.z - b.z < ERR))) {
-        return false;
-    }
+//    if ((glm::abs(a.x - b.x < ERR) && glm::abs(a.y - b.y < ERR))
+//        || (glm::abs(a.x - b.x < ERR) && glm::abs(a.z - b.z < ERR))
+//        || (glm::abs(a.y - b.y < ERR) && glm::abs(a.z - b.z < ERR))) {
+//        invis++;
+//        return false;
+//    }
+
+    float t_other_b = interect(r, p_b);
 
     for (const auto &p : scene) {
-        if (p != p_b) {
-            if (interects(r, p)) {
-                invis++;
+        float t = interect(r, p);
+        if (t > ERR && t < t_other_b) {
+            invis++;
 
 
-                std::cout << "Ray: " << std::endl
-                          << "  origin: (" << a.x << ", " << a.y << ", " << a.z << ")" << std::endl
-                          << "  direction: (" << r.direction.x << ", " << r.direction.y << ", " << r.direction.z << ")"
-                          << std::endl;
-                std::cout << "Patch: " << std::endl
-                          << "  A: (" << p.vertices[0].x << ", " << p.vertices[0].y << ", " << p.vertices[0].z << ")"
-                          << std::endl
-                          << "  B: (" << p.vertices[1].x << ", " << p.vertices[1].y << ", " << p.vertices[1].z << ")"
-                          << std::endl
-                          << "  C: (" << p.vertices[2].x << ", " << p.vertices[2].y << ", " << p.vertices[2].z << ")"
-                          << std::endl;
-
-
-                std::cout << std::endl;
-                return false;
-            }
+//                std::cout << "Ray: " << std::endl
+//                          << "  origin: (" << a.x << ", " << a.y << ", " << a.z << ")" << std::endl
+//                          << "  direction: (" << r.direction.x << ", " << r.direction.y << ", " << r.direction.z << ")"
+//                          << std::endl;
+//                std::cout << "Patch: " << std::endl
+//                          << "  A: (" << p.vertices[0].x << ", " << p.vertices[0].y << ", " << p.vertices[0].z << ")"
+//                          << std::endl
+//                          << "  B: (" << p.vertices[1].x << ", " << p.vertices[1].y << ", " << p.vertices[1].z << ")"
+//                          << std::endl
+//                          << "  C: (" << p.vertices[2].x << ", " << p.vertices[2].y << ", " << p.vertices[2].z << ")"
+//                          << std::endl;
+//
+//
+//                std::cout << std::endl;
+            return false;
         }
     }
 //FIXME: returns false almost always - investigate
@@ -239,9 +242,9 @@ float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a, const glm::vec3 
 
     glm::vec3 ab = glm::normalize(b - a);
     float cos_xy_na = glm::dot(ab, n_a);
-    if (cos_xy_na < 0.0f) { return 0.0f; }
+//    if (cos_xy_na < 0.0f) { return 0.0f; }
     float cos_xy_nb = glm::dot(-1.0f * ab, p_b.normal);
-    if (cos_xy_nb < 0.0f) { return 0.0f; }
+//    if (cos_xy_nb < 0.0f) { return 0.0f; }
 
     float nom = cos_xy_na * cos_xy_nb; // normals are expected to be normalized!
 
@@ -328,7 +331,12 @@ void reinhard(std::vector<patch> &patches) {
 
     for (auto &p : patches) {
         p.rad = p.rad / (glm::vec3(1.0f) + p.rad);
+
+        p.rad.r = glm::pow(p.rad.r, (1.0f / 2.2f)); // gamma correction
+        p.rad.g = glm::pow(p.rad.g, (1.0f / 2.2f));
+        p.rad.b = glm::pow(p.rad.b, (1.0f / 2.2f));
     }
+
 }
 
 int main() {
@@ -336,6 +344,7 @@ int main() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 8);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "", nullptr, nullptr);
@@ -346,17 +355,23 @@ int main() {
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
+    glLineWidth(2.0f);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 //    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    const glm::vec3 camera_pos(278.0f, 273.0f, 800.0f);
+    const glm::vec3 camera_pos(278.0f, 273.0f, -800.0f);
+    const glm::vec3 camera_dir(0.0f, 0.0f, 1.0f);
+    const glm::vec3 world_up(0.0f, 1.0f, 0.0);
     const glm::mat4 proj = glm::perspective(glm::radians(FOV), ASPECT_RATIO, 1.0f, 10000.0f); // replace with real fov
-    const glm::mat4 view = glm::translate(glm::mat4(), -1.0f * camera_pos); // replace
+    const glm::mat4 view = glm::lookAt(camera_pos, camera_pos + camera_dir, world_up); // replace
 
-    std::vector<patch> patches = load_mesh("models/cornell_box.obj");
-    std::vector<patch> patches_copy(patches);
+    std::vector<patch> patches = load_mesh("models/big_triangles.obj");
 
+
+    for (auto &p : patches) {
+        p.rad = p.emit;
+    }
 
     for (int i = 0; i < RAD_ITERATIONS; i++) {
         iteration(patches);
