@@ -27,6 +27,7 @@ struct settings {
     float ASPECT_RATIO;
     int RAD_ITERATIONS;
     int FF_SAMPLES;
+    glm::vec3 camera_pos;
 };
 
 #endif //RADIOSITY_SHARED_H

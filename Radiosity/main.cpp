@@ -1,4 +1,5 @@
 #include "shader.h"
+#include "camera.h"
 #include "utils.h"
 #include "radiosity.h"
 
@@ -10,10 +11,52 @@
  * 1. вынести все функции в файл, чтобы не перекомпилить ++
  * 2. вынести все константы, чтобы не перекомилить ++
  * 3. нормальный тон-мап
- * 4. живая камера
+ * 4. живая камера ++
  * 5. параметры по кнопкам (яркость)
  *
  * */
+
+camera *cam;
+bool keys[1024] = {};
+bool first_call = true;
+double last_x, last_y;
+
+void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
+    double x_offset = 0.0, y_offset = 0.0;
+
+    if (!first_call) {
+        x_offset = xpos - last_x;
+        y_offset = last_y - ypos; // window coordiantes are inverted!
+        last_x = xpos;
+        last_y = ypos;
+    } else {
+        last_x = xpos;
+        last_y = ypos;
+        first_call = false;
+    }
+
+    cam->process_cursor(x_offset, y_offset, true);
+}
+
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    if (action == GLFW_PRESS) {
+        switch (key) {
+            case GLFW_KEY_ESCAPE:
+                glfwSetWindowShouldClose(window, GL_TRUE);
+                break;
+            default:
+                keys[key] = true;
+                break;
+        }
+    } else if (action == GLFW_RELEASE) {
+        keys[key] = false;
+    }
+}
+
+void update(const utils::shader &s) {
+    cam->process_movement(keys); // returns true if matrix was updated
+    s.set_uniform<glm::mat4>("view", cam->view_matrix());
+}
 
 int main() {
     glfwInit();
@@ -28,6 +71,11 @@ int main() {
     GLFWwindow *window = glfwCreateWindow(s.WINDOW_WIDTH, s.WINDOW_HEIGHT, "", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, cursor_pos_callback);
+    glfwSetCursorPos(window, s.WINDOW_WIDTH / 2, s.WINDOW_HEIGHT / 2);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     glewExperimental = GL_TRUE;
     glewInit();
 
@@ -38,11 +86,11 @@ int main() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 //    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-    const glm::vec3 camera_pos(278.0f, 273.0f, -800.0f);
-    const glm::vec3 camera_dir(0.0f, 0.0f, 1.0f);
     const glm::vec3 world_up(0.0f, 1.0f, 0.0);
+    cam = new camera(s.camera_pos, world_up);
+
     const glm::mat4 proj = glm::perspective(glm::radians(s.FOV), s.ASPECT_RATIO, 1.0f, 10000.0f);
-    const glm::mat4 view = glm::lookAt(camera_pos, camera_pos + camera_dir, world_up); // replace
+    glm::mat4 view = cam->view_matrix();
 
 
     std::vector<patch> patches;
@@ -146,6 +194,8 @@ int main() {
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        update(shader);
+
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
         glBindVertexArray(0);
@@ -158,6 +208,8 @@ int main() {
 
     glDeleteBuffers(1, &VBO);
     glDeleteVertexArrays(1, &VAO);
+
+    delete cam;
 
     glfwDestroyWindow(window);
     glfwTerminate();

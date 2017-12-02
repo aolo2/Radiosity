@@ -22,6 +22,9 @@ namespace utils {
         template<typename T>
         void set_uniform(const std::string &var_string, const T &data) const;
 
+        template<typename T>
+        void set_uniform(const std::string &var_string, const T &&data) const;
+
         void use_program() const;
 
         shader(const shader &other) = delete;

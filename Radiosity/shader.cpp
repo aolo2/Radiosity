@@ -84,4 +84,22 @@ namespace utils {
         GLint loc = glGetUniformLocation(this->program, var_string.c_str());
         glUniform1i(loc, data);
     }
+
+    template<>
+    void shader::set_uniform<glm::mat4>(const std::string &var_string, const glm::mat4 &&data) const {
+        GLint loc = glGetUniformLocation(this->program, var_string.c_str());
+        glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(data));
+    }
+
+    template<>
+    void shader::set_uniform<glm::vec3>(const std::string &var_string, const glm::vec3 &&data) const {
+        GLint loc = glGetUniformLocation(this->program, var_string.c_str());
+        glUniform3f(loc, data.x, data.y, data.z);
+    }
+
+    template<>
+    void shader::set_uniform<glm::vec2>(const std::string &var_string, const glm::vec2 &&data) const {
+        GLint loc = glGetUniformLocation(this->program, var_string.c_str());
+        glUniform2f(loc, data.x, data.y);
+    }
 }

@@ -16,7 +16,10 @@ settings load_settings(const std::string &path) {
          >> s.ERR
          >> s.FOV
          >> s.RAD_ITERATIONS
-         >> s.FF_SAMPLES;
+         >> s.FF_SAMPLES
+         >> s.camera_pos.x
+         >> s.camera_pos.y
+         >> s.camera_pos.z;
 
     s.ASPECT_RATIO =
             static_cast<float>(s.WINDOW_WIDTH) /
