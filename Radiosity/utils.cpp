@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "radiosity.h"
 
+#include <dirent.h>
 #include <iostream>
 
 settings load_settings(const std::string &path) {
@@ -28,8 +29,30 @@ settings load_settings(const std::string &path) {
     return s;
 }
 
-std::vector<patch> load_mesh(const std::string &path) {
-    std::vector<patch> patches;
+std::vector<object> load_objects(const std::string &dir_path) {
+    std::vector<object> objects;
+    DIR *dir;
+    struct dirent *ent;
+
+    if ((dir = opendir(dir_path.c_str())) != NULL) {
+        while ((ent = readdir(dir)) != NULL) {
+            std::string file_name(ent->d_name);
+            if (file_name.find(".obj") != std::string::npos) {
+                std::cout << "Loading file \'" << ent->d_name << "\'" << std::endl;
+                objects.push_back(load_mesh(dir_path + std::string(ent->d_name)));
+            }
+        }
+        closedir(dir);
+    } else {
+        std::cerr << "Could not open directory \'" << dir_path << "\'" << std::endl;
+        return {};
+    }
+
+    return objects;
+}
+
+object load_mesh(const std::string &path) {
+    object res = {};
     tinyobj::attrib_t attrib;
 
     std::vector<tinyobj::shape_t> shapes;
@@ -49,6 +72,7 @@ std::vector<patch> load_mesh(const std::string &path) {
 
     for (auto &shape : shapes) {
         std::size_t index_offset = 0;
+        res.name = shape.name;
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -100,11 +124,90 @@ std::vector<patch> load_mesh(const std::string &path) {
 
 //            p.rad = p.color;
 
-            patches.push_back(p);
+            res.patches.push_back(p);
 
             index_offset += fv;
         }
     }
 
-    return patches;
+    return res;
 }
+
+std::vector<float> glify(const std::vector<object> &objects) {
+    std::vector<float> vertices;
+
+    for (const auto &o : objects) {
+        for (const auto &p : o.patches) {
+            vertices.push_back(p.vertices[0].x);
+            vertices.push_back(p.vertices[0].y);
+            vertices.push_back(p.vertices[0].z);
+
+            vertices.push_back(p.rad.x);
+            vertices.push_back(p.rad.y);
+            vertices.push_back(p.rad.z);
+
+            vertices.push_back(p.vertices[1].x);
+            vertices.push_back(p.vertices[1].y);
+            vertices.push_back(p.vertices[1].z);
+
+            vertices.push_back(p.rad.x);
+            vertices.push_back(p.rad.y);
+            vertices.push_back(p.rad.z);
+
+            vertices.push_back(p.vertices[2].x);
+            vertices.push_back(p.vertices[2].y);
+            vertices.push_back(p.vertices[2].z);
+
+            vertices.push_back(p.rad.x);
+            vertices.push_back(p.rad.y);
+            vertices.push_back(p.rad.z);
+        }
+    }
+
+    return vertices;
+}
+
+void init_buffers(GLuint *VAO, GLuint *VBO, const std::vector<float> &vertices) {
+    glGenVertexArrays(1, VAO);
+    glGenBuffers(1, VBO);
+
+    glBindVertexArray(*VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) 0);
+    glEnableVertexAttribArray(0); // position
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) (3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1); // color
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+
+/*
+  auto obj = load_mesh("models/cornell_box/back_wall.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/light.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/ceiling.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/floor.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/red_wall.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/green_wall.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/tall_block.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+    obj = load_mesh("models/cornell_box/short_block.obj");
+    patches.insert(patches.end(), obj.begin(), obj.end());
+
+ * */

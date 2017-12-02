@@ -5,22 +5,12 @@
 
 #include <GLFW/glfw3.h>
 
-/*
- * TODO:
- *
- * 1. вынести все функции в файл, чтобы не перекомпилить ++
- * 2. вынести все константы, чтобы не перекомилить ++
- * 3. нормальный тон-мап
- * 4. живая камера ++
- * 5. параметры по кнопкам (яркость)
- *
- * */
-
 camera *cam;
 bool keys[1024] = {};
 bool first_call = true;
 double last_x, last_y;
 
+/* Cursor movement fires this callback */
 void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     double x_offset = 0.0, y_offset = 0.0;
 
@@ -38,6 +28,7 @@ void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     cam->process_cursor(x_offset, y_offset, true);
 }
 
+/* Key press or release fires this callback */
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
         switch (key) {
@@ -53,12 +44,14 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 }
 
+/* Per-frame updates */
 void update(const utils::shader &s) {
     cam->process_movement(keys); // returns true if matrix was updated
     s.set_uniform<glm::mat4>("view", cam->view_matrix());
 }
 
 int main() {
+    /* Init glfw */
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -66,8 +59,10 @@ int main() {
     glfwWindowHint(GLFW_SAMPLES, 8);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
+    /* Load constants */
     settings s = load_settings("constants");
 
+    /* Create a window and set callbacks, etc. */
     GLFWwindow *window = glfwCreateWindow(s.WINDOW_WIDTH, s.WINDOW_HEIGHT, "", nullptr, nullptr);
     glfwMakeContextCurrent(window);
 
@@ -76,6 +71,7 @@ int main() {
     glfwSetCursorPos(window, s.WINDOW_WIDTH / 2, s.WINDOW_HEIGHT / 2);
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
+    /* Init OpenGL(GLEW) */
     glewExperimental = GL_TRUE;
     glewInit();
 
@@ -84,112 +80,58 @@ int main() {
     glLineWidth(2.0f);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-//    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+    /* Init view and projection matrices */
     const glm::vec3 world_up(0.0f, 1.0f, 0.0);
     cam = new camera(s.camera_pos, world_up);
 
     const glm::mat4 proj = glm::perspective(glm::radians(s.FOV), s.ASPECT_RATIO, 1.0f, 10000.0f);
     glm::mat4 view = cam->view_matrix();
 
+    /* Load geometry from wavefront obj */
+    std::vector<object> objects = load_objects("models/cornell_box/");
 
-    std::vector<patch> patches;
-
-//    patches = load_mesh("models/cornell_tesselated.obj");
-    auto obj = load_mesh("models/cornell_box/back_wall.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/light.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/ceiling.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/floor.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/red_wall.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/green_wall.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/tall_block.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/short_block.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
+    /* Start keeping the time */
     double start = glfwGetTime();
+    double seconds, minutes;
 
-    for (auto &p : patches) {
-        p.rad = p.emit;
+    /* (-1)th iteration of radiosity  */
+    for (auto &o : objects) {
+        for (auto &p : o.patches) {
+            p.rad = p.emit;
+        }
     }
 
+    /* Jacobi iterations */
     for (int i = 0; i < s.RAD_ITERATIONS; i++) {
-        iteration(patches, s.ERR, s.FF_SAMPLES);
+        iteration(objects, s.ERR, s.FF_SAMPLES);
         std::cout << "Iteration " << i + 1 << " complete" << std::endl;
     }
 
-    reinhard(patches);
+    /* Tone map */
+    reinhard(objects);
 
-    double seconds = glfwGetTime() - start;
-    auto minutes = static_cast<int>(seconds / 60);
+    /* Display computation time */
+    seconds = glfwGetTime() - start;
+    minutes = static_cast<int>(seconds / 60);
     seconds = (int) seconds % 60;
-
     std::cout << minutes << "m " << (int) seconds << "s" << std::endl;
 
-    std::vector<GLfloat> vertices = {};
+    /* Transform to OpenGL per-vertex format */
+    std::vector<float> vertices(glify(objects));
 
-    for (const auto &p : patches) {
-        vertices.push_back(p.vertices[0].x);
-        vertices.push_back(p.vertices[0].y);
-        vertices.push_back(p.vertices[0].z);
-
-        vertices.push_back(p.rad.x);
-        vertices.push_back(p.rad.y);
-        vertices.push_back(p.rad.z);
-
-        vertices.push_back(p.vertices[1].x);
-        vertices.push_back(p.vertices[1].y);
-        vertices.push_back(p.vertices[1].z);
-
-        vertices.push_back(p.rad.x);
-        vertices.push_back(p.rad.y);
-        vertices.push_back(p.rad.z);
-
-        vertices.push_back(p.vertices[2].x);
-        vertices.push_back(p.vertices[2].y);
-        vertices.push_back(p.vertices[2].z);
-
-        vertices.push_back(p.rad.x);
-        vertices.push_back(p.rad.y);
-        vertices.push_back(p.rad.z);
-    }
-
+    /* Init OpenGL buffers */
     GLuint VAO, VBO;
+    init_buffers(&VAO, &VBO, vertices);
 
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-
-    glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) 0);
-    glEnableVertexAttribArray(0); // position
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) (3 * sizeof(GLfloat)));
-    glEnableVertexAttribArray(1); // color
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
-
+    /* Create a shader program and init uniform variables */
     utils::shader shader("GLSL/pass_3d.vert", "GLSL/white.frag");
-
     shader.use_program();
     shader.set_uniform<glm::mat4>("proj", proj);
     shader.set_uniform<glm::mat4>("view", view);
 
+
+    /* Main draw loop */
     while (glfwWindowShouldClose(window) == 0) {
         glfwPollEvents();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -203,16 +145,18 @@ int main() {
         glfwSwapBuffers(window);
     }
 
+
+    /* Clean up */
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     glDeleteBuffers(1, &VBO);
     glDeleteVertexArrays(1, &VAO);
 
-    delete cam;
-
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    delete cam;
 
     return 0;
 }

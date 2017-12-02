@@ -1,6 +1,10 @@
 #ifndef RADIOSITY_SHARED_H
 #define RADIOSITY_SHARED_H
 
+#define GLEW_STATIC
+
+#include <GL/glew.h>
+
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -28,6 +32,12 @@ struct settings {
     int RAD_ITERATIONS;
     int FF_SAMPLES;
     glm::vec3 camera_pos;
+};
+
+struct object {
+    std::vector<patch> patches;
+    std::string name;
+    // TODO: BVH
 };
 
 #endif //RADIOSITY_SHARED_H
