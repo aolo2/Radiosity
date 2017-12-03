@@ -1,8 +1,11 @@
 #ifndef RADIOSITY_RADIOSITY_H
 #define RADIOSITY_RADIOSITY_H
 
-#include <random>
 #include "shared.h"
+#include "bvh.h"
+
+#include <random>
+
 
 float area(const patch &p);
 

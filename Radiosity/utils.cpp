@@ -20,7 +20,8 @@ settings load_settings(const std::string &path) {
          >> s.FF_SAMPLES
          >> s.camera_pos.x
          >> s.camera_pos.y
-         >> s.camera_pos.z;
+         >> s.camera_pos.z
+         >> s.mesh_path;
 
     s.ASPECT_RATIO =
             static_cast<float>(s.WINDOW_WIDTH) /
@@ -29,30 +30,8 @@ settings load_settings(const std::string &path) {
     return s;
 }
 
-std::vector<object> load_objects(const std::string &dir_path) {
+std::vector<object> load_mesh(const std::string &path) {
     std::vector<object> objects;
-    DIR *dir;
-    struct dirent *ent;
-
-    if ((dir = opendir(dir_path.c_str())) != NULL) {
-        while ((ent = readdir(dir)) != NULL) {
-            std::string file_name(ent->d_name);
-            if (file_name.find(".obj") != std::string::npos) {
-                std::cout << "Loading file \'" << ent->d_name << "\'" << std::endl;
-                objects.push_back(load_mesh(dir_path + std::string(ent->d_name)));
-            }
-        }
-        closedir(dir);
-    } else {
-        std::cerr << "Could not open directory \'" << dir_path << "\'" << std::endl;
-        return {};
-    }
-
-    return objects;
-}
-
-object load_mesh(const std::string &path) {
-    object res = {};
     tinyobj::attrib_t attrib;
 
     std::vector<tinyobj::shape_t> shapes;
@@ -71,8 +50,12 @@ object load_mesh(const std::string &path) {
     }
 
     for (auto &shape : shapes) {
+        object obj = {};
         std::size_t index_offset = 0;
-        res.name = shape.name;
+
+        obj.name = shape.name;
+
+        std::cout << "Loading object \'" << obj.name << "\'" << std::endl;
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -122,15 +105,16 @@ object load_mesh(const std::string &path) {
                     materials[current_material_id].ambient[1],
                     materials[current_material_id].ambient[2]);
 
-//            p.rad = p.color;
-
-            res.patches.push_back(p);
+            obj.patches.push_back(p);
 
             index_offset += fv;
         }
+
+        obj.box = compute_box(obj.patches);
+        objects.push_back(obj);
     }
 
-    return res;
+    return objects;
 }
 
 std::vector<float> glify(const std::vector<object> &objects) {
@@ -183,31 +167,3 @@ void init_buffers(GLuint *VAO, GLuint *VBO, const std::vector<float> &vertices) 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
-
-
-/*
-  auto obj = load_mesh("models/cornell_box/back_wall.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/light.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/ceiling.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/floor.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/red_wall.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/green_wall.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/tall_block.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
-    obj = load_mesh("models/cornell_box/short_block.obj");
-    patches.insert(patches.end(), obj.begin(), obj.end());
-
- * */

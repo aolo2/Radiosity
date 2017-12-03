@@ -7,6 +7,7 @@
 
 camera *cam;
 bool keys[1024] = {};
+bool cam_interactive = false;
 bool first_call = true;
 double last_x, last_y;
 
@@ -25,18 +26,28 @@ void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
         first_call = false;
     }
 
-    cam->process_cursor(x_offset, y_offset, true);
+    if (cam_interactive) {
+        cam->process_cursor(x_offset, y_offset, true);
+    }
 }
 
 /* Key press or release fires this callback */
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
     if (action == GLFW_PRESS) {
+        keys[key] = true;
         switch (key) {
             case GLFW_KEY_ESCAPE:
                 glfwSetWindowShouldClose(window, GL_TRUE);
                 break;
+            case GLFW_KEY_SPACE:
+                cam_interactive = !cam_interactive;
+                glfwSetInputMode(window, GLFW_CURSOR,
+                                 cam_interactive ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
+
+                std::cout << "Interactive camera mode "
+                          << (cam_interactive ? "ENABLED" : "DISABLED")
+                          << std::endl;
             default:
-                keys[key] = true;
                 break;
         }
     } else if (action == GLFW_RELEASE) {
@@ -46,7 +57,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 /* Per-frame updates */
 void update(const utils::shader &s) {
-    cam->process_movement(keys); // returns true if matrix was updated
+    if (cam_interactive) {
+        cam->process_movement(keys); // returns true if matrix was updated
+    }
+
     s.set_uniform<glm::mat4>("view", cam->view_matrix());
 }
 
@@ -69,7 +83,6 @@ int main() {
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, cursor_pos_callback);
     glfwSetCursorPos(window, s.WINDOW_WIDTH / 2, s.WINDOW_HEIGHT / 2);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     /* Init OpenGL(GLEW) */
     glewExperimental = GL_TRUE;
@@ -89,7 +102,7 @@ int main() {
     glm::mat4 view = cam->view_matrix();
 
     /* Load geometry from wavefront obj */
-    std::vector<object> objects = load_objects("models/cornell_box/");
+    std::vector<object> objects = load_mesh(s.mesh_path);
 
     /* Start keeping the time */
     double start = glfwGetTime();
@@ -105,7 +118,7 @@ int main() {
     /* Jacobi iterations */
     for (int i = 0; i < s.RAD_ITERATIONS; i++) {
         iteration(objects, s.ERR, s.FF_SAMPLES);
-        std::cout << "Iteration " << i + 1 << " complete" << std::endl;
+        std::cout << "Iteration " << i + 1 << "/" << s.RAD_ITERATIONS << " complete" << std::endl;
     }
 
     /* Tone map */

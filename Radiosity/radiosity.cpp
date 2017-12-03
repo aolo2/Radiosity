@@ -62,6 +62,7 @@ float intersect(const ray &r, const patch &p, float ERR) {
 
 bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b,
              const std::vector<object> &world, float ERR) {
+
     ray r = {};
     r.origin = a;
     r.direction = glm::normalize(b - a);
@@ -69,10 +70,14 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b,
     float t_other_b = intersect(r, p_b, ERR);
 
     for (const auto &o : world) {
-        for (const auto &p : o.patches) {
-            float t = intersect(r, p, ERR);
-            if (t > ERR && t < t_other_b) {
-                return false;
+        if (!intersect(r, o.box, ERR)) {
+            continue;
+        } else {
+            for (const auto &p : o.patches) {
+                float t = intersect(r, p, ERR);
+                if (t > ERR && t < t_other_b) {
+                    return false;
+                }
             }
         }
     }
@@ -159,7 +164,7 @@ void reinhard(std::vector<object> &objects) {
         N += o.patches.size();
     }
 
-    const glm::vec3 a = glm::vec3(0.1f); // TODO: wtf is mid-gray??
+    const glm::vec3 a = glm::vec3(0.5f); // TODO: wtf is mid-gray??
     glm::vec3 product = glm::vec3(1.0f);
 
     for (auto &o : objects) {
