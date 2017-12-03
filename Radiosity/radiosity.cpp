@@ -1,3 +1,4 @@
+#include <iostream>
 #include "radiosity.h"
 
 std::random_device rd;
@@ -70,15 +71,9 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b,
     float t_other_b = intersect(r, p_b, ERR);
 
     for (const auto &o : world) {
-        if (!intersect(r, o.box, ERR)) {
-            continue;
-        } else {
-            for (const auto &p : o.patches) {
-                float t = intersect(r, p, ERR);
-                if (t > ERR && t < t_other_b) {
-                    return false;
-                }
-            }
+        float t = intersect(r, o.root, ERR);
+        if (t > ERR && t < t_other_b) {
+            return false;
         }
     }
 

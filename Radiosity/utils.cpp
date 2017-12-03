@@ -111,7 +111,12 @@ std::vector<object> load_mesh(const std::string &path) {
         }
 
         obj.box = compute_box(obj.patches);
+
+#ifdef DEBUG
+        obj.root = compute_tree(obj.patches);
+#endif
         objects.push_back(obj);
+
     }
 
     return objects;
