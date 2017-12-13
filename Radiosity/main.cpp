@@ -135,12 +135,12 @@ int main() {
 
     /* Jacobi iterations */
     for (int i = 0; i < s.RAD_ITERATIONS; i++) {
-        iteration(objects, s.ERR, s.FF_SAMPLES);
+        iteration(patches, tree, primitives, s.ERR, s.FF_SAMPLES);
         std::cout << "Iteration " << i + 1 << "/" << s.RAD_ITERATIONS << " complete" << std::endl;
     }
 
     /* Tone map */
-    reinhard(objects);
+    reinhard(patches);
 
     /* Display computation time */
     seconds = glfwGetTime() - start;
@@ -149,7 +149,7 @@ int main() {
     std::cout << minutes << "m " << (int) seconds << "s" << std::endl;
 
     /* Transform to OpenGL per-vertex format */
-    std::vector<float> vertices(glify(objects));
+    std::vector<float> vertices(glify(patches));
 
     /* Init OpenGL buffers */
     GLuint VAO, VBO;

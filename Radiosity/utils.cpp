@@ -52,7 +52,7 @@ std::vector<patch> load_mesh(const std::string &path) {
     for (auto &shape : shapes) {
         std::size_t index_offset = 0;
 
-        std::cout << "Loading object \'" <<shape.name << "\'" << std::endl;
+        std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -111,35 +111,33 @@ std::vector<patch> load_mesh(const std::string &path) {
     return patches;
 }
 
-std::vector<float> glify(const std::vector<object> &objects) {
+std::vector<float> glify(const std::vector<patch> &patches) {
     std::vector<float> vertices;
 
-    for (const auto &o : objects) {
-        for (const auto &p : o.patches) {
-            vertices.push_back(p.vertices[0].x);
-            vertices.push_back(p.vertices[0].y);
-            vertices.push_back(p.vertices[0].z);
+    for (const auto &p : patches) {
+        vertices.push_back(p.vertices[0].x);
+        vertices.push_back(p.vertices[0].y);
+        vertices.push_back(p.vertices[0].z);
 
-            vertices.push_back(p.rad.x);
-            vertices.push_back(p.rad.y);
-            vertices.push_back(p.rad.z);
+        vertices.push_back(p.rad.x);
+        vertices.push_back(p.rad.y);
+        vertices.push_back(p.rad.z);
 
-            vertices.push_back(p.vertices[1].x);
-            vertices.push_back(p.vertices[1].y);
-            vertices.push_back(p.vertices[1].z);
+        vertices.push_back(p.vertices[1].x);
+        vertices.push_back(p.vertices[1].y);
+        vertices.push_back(p.vertices[1].z);
 
-            vertices.push_back(p.rad.x);
-            vertices.push_back(p.rad.y);
-            vertices.push_back(p.rad.z);
+        vertices.push_back(p.rad.x);
+        vertices.push_back(p.rad.y);
+        vertices.push_back(p.rad.z);
 
-            vertices.push_back(p.vertices[2].x);
-            vertices.push_back(p.vertices[2].y);
-            vertices.push_back(p.vertices[2].z);
+        vertices.push_back(p.vertices[2].x);
+        vertices.push_back(p.vertices[2].y);
+        vertices.push_back(p.vertices[2].z);
 
-            vertices.push_back(p.rad.x);
-            vertices.push_back(p.rad.y);
-            vertices.push_back(p.rad.z);
-        }
+        vertices.push_back(p.rad.x);
+        vertices.push_back(p.rad.y);
+        vertices.push_back(p.rad.z);
     }
 
     return vertices;

@@ -164,16 +164,40 @@ bvh_node *bvh(std::vector<patch *> &primitives) {
 
     /* 2. Construct the BVH */
     bvh_node *root = rec_build(primitive_info, 0, primitives.size(), ordered_primititves, primitives);
-
-//    std::swap(ordered_primititves, primitives);
-
+    std::swap(ordered_primititves, primitives);
 
     /* 3. Convert to compact */
-
-
-
+    // TODO
 
     return root;
+}
+
+float intersect(const ray &r, const bvh_node *node,
+                const std::vector<patch *> &primitives, float ERR) {
+    float t = INF;
+
+    if (!intersect(r, node->box, ERR)) {
+        return -1.0f;
+    }
+
+    if (node->children[0] == node->children[1]
+        && node->children[0] == nullptr) {
+
+        t = intersect(r, *primitives[node->prim_base], ERR);
+    } else {
+        auto t_c0 = intersect(r, node->children[0], primitives, ERR);
+        auto t_c1 = intersect(r, node->children[1], primitives, ERR);
+
+        if (t_c0 > 0.0f) {
+            t = std::min(t, t_c0);
+        }
+
+        if (t_c1 > 0.0f) {
+            t = std::min(t, t_c1);
+        }
+    }
+
+    return t;
 }
 
 #ifdef DEBUG
@@ -266,5 +290,4 @@ std::vector<float> bvh_debug_vertices(const bvh_node *node, const int depth) {
 
     return res;
 }
-
 #endif
