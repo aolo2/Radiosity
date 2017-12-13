@@ -70,14 +70,10 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b,
     float t_other_b = intersect(r, p_b, ERR);
 
     for (const auto &o : world) {
-        if (!intersect(r, o.box, ERR)) {
-            continue;
-        } else {
-            for (const auto &p : o.patches) {
-                float t = intersect(r, p, ERR);
-                if (t > ERR && t < t_other_b) {
-                    return false;
-                }
+        for (const auto &p : o.patches) {
+            float t = intersect(r, p, ERR);
+            if (t > ERR && t_other_b - t > ERR) {
+                return false;
             }
         }
     }
@@ -94,9 +90,9 @@ float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a,
     glm::vec3 ab = glm::normalize(b - a);
 
     float cos_xy_na = glm::dot(ab, n_a);
-    if (cos_xy_na <= 0.0f) { return 0.0f; }
+    if (cos_xy_na <= ERR) { return 0.0f; }
     float cos_xy_nb = glm::dot(-1.0f * ab, p_b.normal);
-    if (cos_xy_nb <= 0.0f) { return 0.0f; }
+    if (cos_xy_nb <= ERR) { return 0.0f; }
 
     float nom = glm::abs(cos_xy_na * cos_xy_nb); // normals are expected to be normalized!
 
@@ -109,8 +105,8 @@ float form_factor(const patch &here, const patch &there, std::vector<object> &wo
     float F_ij = 0.0f;
 
     for (int k = 0; k < FF_SAMPLES; k++) {
-        glm::vec3 here_p = sample_point(here);
-        glm::vec3 there_p = sample_point(there);
+        glm::vec3 here_p = here.vertices[3]; //sample_point(here);
+        glm::vec3 there_p = there.vertices[3]; //sample_point(there);
 
         if (visible(here_p, there_p, there, world, ERR)) {
             float dF = p2p_form_factor(here_p, here.normal, there_p, there, ERR, FF_SAMPLES);

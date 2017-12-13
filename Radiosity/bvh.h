@@ -3,32 +3,50 @@
 
 #include "shared.h"
 
-const int b_planes = 7;
-const float s3o3 = glm::sqrt(3.0f) / 3.0f;
+const int b_planes = 3;
 
-struct bbox {
-    glm::vec3 normals[b_planes] = {
-            glm::vec3(1.0f, 0.0f, 0.0f),
-            glm::vec3(0.0f, 1.0f, 0.0f),
-            glm::vec3(0.0f, 0.0f, 1.0f),
-            glm::vec3(s3o3, s3o3, s3o3),
-            glm::vec3(-1.0f * s3o3, s3o3, s3o3),
-            glm::vec3(-1.0f * s3o3, -1.0f * s3o3, s3o3),
-            glm::vec3(s3o3, -1.0f * s3o3, s3o3),
-    };
+enum axis {
+    x = 0,
+    y = 1,
+    z = 2,
+};
 
-    float d_near[b_planes];
-    float d_far[b_planes];
+struct aabb {
+    glm::vec3 near;
+    glm::vec3 far;
+    // todo need to only store length of diagonal
 };
 
 struct object {
     std::vector<patch> patches;
     std::string name;
-    bbox box;
+    aabb box;
 };
 
-bbox compute_box(const std::vector<patch> &patches);
+struct bvh_node {
+    aabb box;
+    bvh_node *children[2];
+    axis split;
+    std::size_t prim_base;
+    std::size_t prim_num;
+};
 
-bool intersect(const ray &r, const bbox &boxm,  float ERR);
+struct prim_info {
+    std::size_t prim_idx;
+    aabb box;
+    glm::vec3 centroid;
+};
+
+
+aabb compute_box(const std::vector<patch> &patches);
+
+bool intersect(const ray &r, const aabb &box, float ERR);
+
+bvh_node *bvh(std::vector<patch *> &primitives);
+
+#ifdef DEBUG
+const int MAX_DEPTH = 100;
+std::vector<float> bvh_debug_vertices(const bvh_node *node, int depth);
+#endif
 
 #endif //RADIOSITY_BVH_H

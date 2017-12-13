@@ -2,6 +2,7 @@
 #include "camera.h"
 #include "utils.h"
 #include "radiosity.h"
+#include "bvh.h"
 
 #include <GLFW/glfw3.h>
 
@@ -91,6 +92,7 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glLineWidth(2.0f);
+    glPointSize(5.0f);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -102,11 +104,27 @@ int main() {
     glm::mat4 view = cam->view_matrix();
 
     /* Load geometry from wavefront obj */
-    std::vector<object> objects = load_mesh(s.mesh_path);
+    std::vector<patch> patches = load_mesh(s.mesh_path);
+    std::vector<patch *> primitives(patches.size());
+
+    for (auto i = 0; i < patches.size(); i++) {
+        primitives[i] = &patches[i];
+    }
+
+    bvh_node *tree = bvh(primitives);
+
+#ifdef DEBUG
+    GLuint BVH_VAO, BVH_VBO;
+    std::vector<float> bvh_verts = bvh_debug_vertices(tree, 0);
+    init_buffers(&BVH_VAO, &BVH_VBO, bvh_verts);
+#endif
+
 
     /* Start keeping the time */
     double start = glfwGetTime();
     double seconds, minutes;
+
+    std::vector<object> objects;
 
     /* (-1)th iteration of radiosity  */
     for (auto &o : objects) {
@@ -150,6 +168,16 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         update(shader);
+
+#ifdef DEBUG
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        glEnable(GL_CULL_FACE);
+        glBindVertexArray(BVH_VAO);
+        glDrawArrays(GL_TRIANGLES, 0, bvh_verts.size() / 3);
+        glBindVertexArray(0);
+        glDisable(GL_CULL_FACE);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
 
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);

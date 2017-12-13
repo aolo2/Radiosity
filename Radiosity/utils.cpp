@@ -30,8 +30,8 @@ settings load_settings(const std::string &path) {
     return s;
 }
 
-std::vector<object> load_mesh(const std::string &path) {
-    std::vector<object> objects;
+std::vector<patch> load_mesh(const std::string &path) {
+    std::vector<patch> patches;
     tinyobj::attrib_t attrib;
 
     std::vector<tinyobj::shape_t> shapes;
@@ -50,12 +50,9 @@ std::vector<object> load_mesh(const std::string &path) {
     }
 
     for (auto &shape : shapes) {
-        object obj = {};
         std::size_t index_offset = 0;
 
-        obj.name = shape.name;
-
-        std::cout << "Loading object \'" << obj.name << "\'" << std::endl;
+        std::cout << "Loading object \'" <<shape.name << "\'" << std::endl;
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -105,16 +102,13 @@ std::vector<object> load_mesh(const std::string &path) {
                     materials[current_material_id].ambient[1],
                     materials[current_material_id].ambient[2]);
 
-            obj.patches.push_back(p);
+            patches.push_back(p);
 
             index_offset += fv;
         }
-
-        obj.box = compute_box(obj.patches);
-        objects.push_back(obj);
     }
 
-    return objects;
+    return patches;
 }
 
 std::vector<float> glify(const std::vector<object> &objects) {

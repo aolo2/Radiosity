@@ -10,6 +10,8 @@
 #include <vector>
 #include <string>
 
+const float INF = std::numeric_limits<float>::infinity();
+
 struct patch {
     glm::vec3 vertices[4];
     glm::vec3 normal;
