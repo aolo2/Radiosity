@@ -2,13 +2,15 @@
 #define RADIOSITY_SHARED_H
 
 #define GLEW_STATIC
-#define DEBUG
+//#define DEBUG
 
 #include <GL/glew.h>
 
 #include <glm/glm.hpp>
 #include <vector>
 #include <string>
+
+const float INF = std::numeric_limits<float>::infinity();
 
 struct patch {
     glm::vec3 vertices[4];
@@ -36,5 +38,7 @@ struct settings {
     glm::vec3 camera_pos;
     std::string mesh_path;
 };
+
+float intersect(const ray &r, const patch &p, float ERR);
 
 #endif //RADIOSITY_SHARED_H

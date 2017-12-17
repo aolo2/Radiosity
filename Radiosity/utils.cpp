@@ -30,8 +30,8 @@ settings load_settings(const std::string &path) {
     return s;
 }
 
-std::vector<object> load_mesh(const std::string &path) {
-    std::vector<object> objects;
+std::vector<patch> load_mesh(const std::string &path) {
+    std::vector<patch> patches;
     tinyobj::attrib_t attrib;
 
     std::vector<tinyobj::shape_t> shapes;
@@ -50,12 +50,9 @@ std::vector<object> load_mesh(const std::string &path) {
     }
 
     for (auto &shape : shapes) {
-        object obj = {};
         std::size_t index_offset = 0;
 
-        obj.name = shape.name;
-
-        std::cout << "Loading object \'" << obj.name << "\'" << std::endl;
+        std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -105,52 +102,42 @@ std::vector<object> load_mesh(const std::string &path) {
                     materials[current_material_id].ambient[1],
                     materials[current_material_id].ambient[2]);
 
-            obj.patches.push_back(p);
+            patches.push_back(p);
 
             index_offset += fv;
         }
-
-        obj.box = compute_box(obj.patches);
-
-#ifdef DEBUG
-        obj.root = compute_tree(obj.patches);
-#endif
-        objects.push_back(obj);
-
     }
 
-    return objects;
+    return patches;
 }
 
-std::vector<float> glify(const std::vector<object> &objects) {
+std::vector<float> glify(const std::vector<patch> &patches) {
     std::vector<float> vertices;
 
-    for (const auto &o : objects) {
-        for (const auto &p : o.patches) {
-            vertices.push_back(p.vertices[0].x);
-            vertices.push_back(p.vertices[0].y);
-            vertices.push_back(p.vertices[0].z);
+    for (const auto &p : patches) {
+        vertices.push_back(p.vertices[0].x);
+        vertices.push_back(p.vertices[0].y);
+        vertices.push_back(p.vertices[0].z);
 
-            vertices.push_back(p.rad.x);
-            vertices.push_back(p.rad.y);
-            vertices.push_back(p.rad.z);
+        vertices.push_back(p.rad.x);
+        vertices.push_back(p.rad.y);
+        vertices.push_back(p.rad.z);
 
-            vertices.push_back(p.vertices[1].x);
-            vertices.push_back(p.vertices[1].y);
-            vertices.push_back(p.vertices[1].z);
+        vertices.push_back(p.vertices[1].x);
+        vertices.push_back(p.vertices[1].y);
+        vertices.push_back(p.vertices[1].z);
 
-            vertices.push_back(p.rad.x);
-            vertices.push_back(p.rad.y);
-            vertices.push_back(p.rad.z);
+        vertices.push_back(p.rad.x);
+        vertices.push_back(p.rad.y);
+        vertices.push_back(p.rad.z);
 
-            vertices.push_back(p.vertices[2].x);
-            vertices.push_back(p.vertices[2].y);
-            vertices.push_back(p.vertices[2].z);
+        vertices.push_back(p.vertices[2].x);
+        vertices.push_back(p.vertices[2].y);
+        vertices.push_back(p.vertices[2].z);
 
-            vertices.push_back(p.rad.x);
-            vertices.push_back(p.rad.y);
-            vertices.push_back(p.rad.z);
-        }
+        vertices.push_back(p.rad.x);
+        vertices.push_back(p.rad.y);
+        vertices.push_back(p.rad.z);
     }
 
     return vertices;
