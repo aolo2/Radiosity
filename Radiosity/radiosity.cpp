@@ -62,22 +62,31 @@ float intersect(const ray &r, const patch &p, float ERR) {
 }
 
 bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b,
-             const std::vector<object> &world, float ERR) {
+             const bvh_node *world, const std::vector<patch *> &primitives, float ERR) {
 
     ray r = {};
     r.origin = a;
     r.direction = glm::normalize(b - a);
 
     float t_other_b = intersect(r, p_b, ERR);
+    float t_world = intersect(r, world, primitives, ERR);
 
-    for (const auto &o : world) {
-        float t = intersect(r, o.root, ERR);
-        if (t > ERR && t < t_other_b) {
-            return false;
+#if 0
+    float t = INF;
+    for (auto p : primitives) {
+        float t_now = intersect(r, *p, ERR);
+        if (t_now > ERR && t_now < t_other_b) {
+            t = std::min(t, t_now);
         }
     }
 
-    return true;
+//    if (t > ERR && t < t_other_b) {
+//        std::cout << t_world - t << std::endl;
+//    }
+    return !(t < t_other_b && t > ERR);
+#endif
+
+    return !(t_world > ERR && t_world < t_other_b);
 }
 
 float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a,
@@ -89,16 +98,17 @@ float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a,
     glm::vec3 ab = glm::normalize(b - a);
 
     float cos_xy_na = glm::dot(ab, n_a);
-    if (cos_xy_na <= 0.0f) { return 0.0f; }
+    if (cos_xy_na <= ERR) { return 0.0f; }
     float cos_xy_nb = glm::dot(-1.0f * ab, p_b.normal);
-    if (cos_xy_nb <= 0.0f) { return 0.0f; }
+    if (cos_xy_nb <= ERR) { return 0.0f; }
 
-    float nom = glm::abs(cos_xy_na * cos_xy_nb); // normals are expected to be normalized!
+    float nom = cos_xy_na * cos_xy_nb; // normals are expected to be normalized!
 
     return nom / denom;
 }
 
-float form_factor(const patch &here, const patch &there, std::vector<object> &world,
+float form_factor(const patch &here, const patch &there,
+                  const bvh_node *world, const std::vector<patch *> &primitives,
                   float ERR, int FF_SAMPLES) {
     // from 'Radiosity and Realistic Image Synthesis' p. 95
     float F_ij = 0.0f;
@@ -107,7 +117,7 @@ float form_factor(const patch &here, const patch &there, std::vector<object> &wo
         glm::vec3 here_p = sample_point(here);
         glm::vec3 there_p = sample_point(there);
 
-        if (visible(here_p, there_p, there, world, ERR)) {
+        if (visible(here_p, there_p, there, world, primitives, ERR)) {
             float dF = p2p_form_factor(here_p, here.normal, there_p, there, ERR, FF_SAMPLES);
             if (dF > 0.0f) {
                 F_ij += dF;
@@ -120,69 +130,49 @@ float form_factor(const patch &here, const patch &there, std::vector<object> &wo
     return F_ij;
 }
 
-void iteration(std::vector<object> &objects, float ERR, int FF_SAMPLES) {
-    for (auto &o : objects) {
-        for (auto &p : o.patches) {
-            glm::vec3 rad_new = glm::vec3(0.0f);
+void iteration(std::vector<patch> &patches, const bvh_node *world,
+               const std::vector<patch *> &primitives, float ERR, int FF_SAMPLES) {
 
-            float sum_ij = 0.0f;
+    for (auto &p : patches) {
+        glm::vec3 rad_new = glm::vec3(0.0f);
 
-            for (auto &o_other : objects) {
-                for (auto &p_other: o_other.patches) {
-                    float ff = form_factor(p, p_other, objects, ERR, FF_SAMPLES);
-
-                    rad_new += p_other.rad * ff;
-                    sum_ij += ff;
-                }
-            }
-
-            rad_new *= p.color;
-            rad_new += p.emit;
-
-            p.rad_new = rad_new;
+        for (auto &p_other: patches) {
+            float ff = form_factor(p, p_other, world, primitives, ERR, FF_SAMPLES);
+            rad_new += p_other.rad * ff;
         }
 
+        rad_new *= p.color;
+        rad_new += p.emit;
+
+        p.rad_new = rad_new;
     }
 
-    for (auto &o : objects) {
-        for (auto &p : o.patches) {
-            p.rad = p.rad_new;
-        }
-    }
 
+    for (auto &p : patches) {
+        p.rad = p.rad_new;
+    }
 }
 
-void reinhard(std::vector<object> &objects) {
-    float N = 0;
-
-    for (const auto &o : objects) {
-        N += o.patches.size();
-    }
+void reinhard(std::vector<patch> &patches) {
+    float N = patches.size();
 
     const glm::vec3 a = glm::vec3(0.5f); // TODO: wtf is mid-gray??
     glm::vec3 product = glm::vec3(1.0f);
 
-    for (auto &o : objects) {
-        for (auto &p : o.patches) {
-            product *= glm::vec3(
-                    p.rad.x == 0 ? 1.0f : std::pow(p.rad.x, 1.0f / N),
-                    p.rad.y == 0 ? 1.0f : std::pow(p.rad.y, 1.0f / N),
-                    p.rad.z == 0 ? 1.0f : std::pow(p.rad.z, 1.0f / N));
-        }
+    for (auto &p : patches) {
+        product *= glm::vec3(
+                p.rad.x == 0 ? 1.0f : std::pow(p.rad.x, 1.0f / N),
+                p.rad.y == 0 ? 1.0f : std::pow(p.rad.y, 1.0f / N),
+                p.rad.z == 0 ? 1.0f : std::pow(p.rad.z, 1.0f / N));
     }
 
     glm::vec3 L_avg = product;
 
-    for (auto &o : objects) {
-        for (auto &p : o.patches) {
-            p.rad = a / L_avg * p.rad;
-        }
+    for (auto &p : patches) {
+        p.rad = a / L_avg * p.rad;
     }
 
-    for (auto &o : objects) {
-        for (auto &p : o.patches) {
-            p.rad = p.rad / (glm::vec3(1.0f) + p.rad);
-        }
+    for (auto &p : patches) {
+        p.rad = p.rad / (glm::vec3(1.0f) + p.rad);
     }
-
 }
