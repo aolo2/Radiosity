@@ -173,33 +173,70 @@ bvh_node *bvh(std::vector<patch *> &primitives) {
     return root;
 }
 
-float intersect(const ray &r, const bvh_node *node,
-                const std::vector<patch *> &primitives, float ERR) {
+#ifdef LOCAL
+
+hit
+#else
+float
+#endif
+intersect(const ray &r, const bvh_node *node,
+          const std::vector<patch *> &primitives, float ERR) {
     float t = INF;
 
     if (!intersect(r, node->box, ERR)) {
+
+#ifdef LOCAL
+        hit res = {};
+        res.hit = false;
+        return res;
+#else
         return -1.0f;
+#endif
     }
+
+#ifdef LOCAL
+    hit ret = {};
+    ret.hit = false;
+    ret.t = INF;
+#endif
 
     if (node->split == axis::none) {
+
         for (int i = 0; i < node->prim_num; i++) {
             float t_now = intersect(r, *primitives[node->prim_base + i], ERR);
-            if (t_now > 0.0f) { t = std::min(t, t_now); }
+            if (t_now > 0.0f) {
+#ifdef LOCAL
+                ret.t = std::min(ret.t, t_now);
+                ret.hit = true;
+                ret.p = primitives[node->prim_base + i];
+#else
+                if (t_now > 0.0f)
+#endif
+
+            }
         }
     } else {
-        auto t_c0 = intersect(r, node->children[0], primitives, ERR);
-        auto t_c1 = intersect(r, node->children[1], primitives, ERR);
+        auto hit_c0 = intersect(r, node->children[0], primitives, ERR);
+        auto hit_c1 = intersect(r, node->children[1], primitives, ERR);
 
-        if (t_c0 > ERR) {
-            t = std::min(t, t_c0);
+        if (hit_c0.hit && hit_c0.t > ERR) {
+            ret.t = std::min(ret.t, hit_c0.t);
+            ret.p = hit_c0.p;
+            ret.hit = true;
         }
 
-        if (t_c1 > ERR) {
-            t = std::min(t, t_c1);
+        if (hit_c1.hit && hit_c1.t > ERR) {
+            ret.t = std::min(ret.t, hit_c1.t);
+            ret.p = hit_c1.p;
+            ret.hit = true;
         }
     }
 
+#ifdef LOCAL
+    return ret;
+#else
     return t;
+#endif
 }
 
 #ifdef DEBUG

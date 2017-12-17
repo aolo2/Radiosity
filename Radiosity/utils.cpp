@@ -91,16 +91,16 @@ std::vector<patch> load_mesh(const std::string &path) {
 
 
             p.color = glm::vec3(
-                    materials[current_material_id].diffuse[0],
+                    1.0f,
                     materials[current_material_id].diffuse[1],
                     materials[current_material_id].diffuse[2]);
 
             p.area = area(p);
 
             p.emit = glm::vec3(
-                    materials[current_material_id].ambient[0],
-                    materials[current_material_id].ambient[1],
-                    materials[current_material_id].ambient[2]);
+                    materials[current_material_id].ambient[0] * 20.0f,
+                    materials[current_material_id].ambient[1] * 20.0f,
+                    materials[current_material_id].ambient[2] * 20.0f);
 
             patches.push_back(p);
 
@@ -111,33 +111,33 @@ std::vector<patch> load_mesh(const std::string &path) {
     return patches;
 }
 
-std::vector<float> glify(const std::vector<patch> &patches) {
+std::vector<float> glify(const std::vector<patch *> &primitives) {
     std::vector<float> vertices;
 
-    for (const auto &p : patches) {
-        vertices.push_back(p.vertices[0].x);
-        vertices.push_back(p.vertices[0].y);
-        vertices.push_back(p.vertices[0].z);
+    for (const auto p : primitives) {
+        vertices.push_back(p->vertices[0].x);
+        vertices.push_back(p->vertices[0].y);
+        vertices.push_back(p->vertices[0].z);
 
-        vertices.push_back(p.rad.x);
-        vertices.push_back(p.rad.y);
-        vertices.push_back(p.rad.z);
+        vertices.push_back(p->p_total);
+        vertices.push_back(p->p_total);
+        vertices.push_back(p->p_total);
 
-        vertices.push_back(p.vertices[1].x);
-        vertices.push_back(p.vertices[1].y);
-        vertices.push_back(p.vertices[1].z);
+        vertices.push_back(p->vertices[1].x);
+        vertices.push_back(p->vertices[1].y);
+        vertices.push_back(p->vertices[1].z);
 
-        vertices.push_back(p.rad.x);
-        vertices.push_back(p.rad.y);
-        vertices.push_back(p.rad.z);
+        vertices.push_back(p->p_total);
+        vertices.push_back(p->p_total);
+        vertices.push_back(p->p_total);
 
-        vertices.push_back(p.vertices[2].x);
-        vertices.push_back(p.vertices[2].y);
-        vertices.push_back(p.vertices[2].z);
+        vertices.push_back(p->vertices[2].x);
+        vertices.push_back(p->vertices[2].y);
+        vertices.push_back(p->vertices[2].z);
 
-        vertices.push_back(p.rad.x);
-        vertices.push_back(p.rad.y);
-        vertices.push_back(p.rad.z);
+        vertices.push_back(p->p_total);
+        vertices.push_back(p->p_total);
+        vertices.push_back(p->p_total);
     }
 
     return vertices;

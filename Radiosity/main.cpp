@@ -132,14 +132,20 @@ int main() {
         }
     }
 
+
+#ifdef LOCAL
+    /* Local line radiosity */
+    local_line(primitives, tree, s.ERR);
+#else
     /* Jacobi iterations */
     for (int i = 0; i < s.RAD_ITERATIONS; i++) {
-        iteration(patches, tree, primitives, s.ERR, s.FF_SAMPLES);
+        iteration(tree, primitives, s.ERR, s.FF_SAMPLES);
         std::cout << "Iteration " << i + 1 << "/" << s.RAD_ITERATIONS << " complete" << std::endl;
     }
+#endif
 
     /* Tone map */
-    reinhard(patches);
+    reinhard(primitives);
 
     /* Display computation time */
     seconds = (glfwGetTime() - start) / s.RAD_ITERATIONS / s.FF_SAMPLES;
@@ -148,7 +154,7 @@ int main() {
     std::cout << minutes << "m " << seconds << "s per iteration per FF sample" << std::endl;
 
     /* Transform to OpenGL per-vertex format */
-    std::vector<float> vertices(glify(patches));
+    std::vector<float> vertices(glify(primitives));
 
     /* Init OpenGL buffers */
     GLuint VAO, VBO;

@@ -8,7 +8,7 @@ settings load_settings(const std::string &path);
 
 std::vector<patch> load_mesh(const std::string &path);
 
-std::vector<float> glify(const std::vector<patch> &patches);
+std::vector<float> glify(const std::vector<patch *> &primitives);
 
 void init_buffers(GLuint *VAO, GLuint *VBO, const std::vector<float> &vertices);
 
