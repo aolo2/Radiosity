@@ -34,7 +34,7 @@ bool intersect(const ray &r, const aabb &box, float ERR) {
         float t_near = (box.near[i] - orig_component) / dir_component;
         float t_far = (box.far[i] - orig_component) / dir_component;
 
-        if (dir_component < 0.0f) {
+        if (dir_component < ERR) {
             std::swap(t_near, t_far);
         }
 
@@ -72,6 +72,7 @@ void init_leaf(bvh_node *leaf, std::size_t first, std::size_t n, const aabb &box
     leaf->prim_base = first;
     leaf->prim_num = n;
     leaf->children[0] = leaf->children[1] = nullptr;
+    leaf->split = axis::none;
 }
 
 void init_interior(bvh_node *node, axis split, bvh_node *c0, bvh_node *c1) {
@@ -180,19 +181,20 @@ float intersect(const ray &r, const bvh_node *node,
         return -1.0f;
     }
 
-    if (node->children[0] == node->children[1]
-        && node->children[0] == nullptr) {
-
-        t = intersect(r, *primitives[node->prim_base], ERR);
+    if (node->split == axis::none) {
+        for (int i = 0; i < node->prim_num; i++) {
+            float t_now = intersect(r, *primitives[node->prim_base + i], ERR);
+            if (t_now > 0.0f) { t = std::min(t, t_now); }
+        }
     } else {
         auto t_c0 = intersect(r, node->children[0], primitives, ERR);
         auto t_c1 = intersect(r, node->children[1], primitives, ERR);
 
-        if (t_c0 > 0.0f) {
+        if (t_c0 > ERR) {
             t = std::min(t, t_c0);
         }
 
-        if (t_c1 > 0.0f) {
+        if (t_c1 > ERR) {
             t = std::min(t, t_c1);
         }
     }

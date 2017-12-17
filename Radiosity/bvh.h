@@ -9,6 +9,7 @@ enum axis {
     x = 0,
     y = 1,
     z = 2,
+    none = 3,
 };
 
 struct aabb {

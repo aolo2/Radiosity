@@ -71,7 +71,22 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch &p_b,
     float t_other_b = intersect(r, p_b, ERR);
     float t_world = intersect(r, world, primitives, ERR);
 
-    return (t_world > 0.0f && t_world < t_other_b);
+#if 0
+    float t = INF;
+    for (auto p : primitives) {
+        float t_now = intersect(r, *p, ERR);
+        if (t_now > ERR && t_now < t_other_b) {
+            t = std::min(t, t_now);
+        }
+    }
+
+//    if (t > ERR && t < t_other_b) {
+//        std::cout << t_world - t << std::endl;
+//    }
+    return !(t < t_other_b && t > ERR);
+#endif
+
+    return !(t_world > ERR && t_world < t_other_b);
 }
 
 float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a,
@@ -87,7 +102,7 @@ float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a,
     float cos_xy_nb = glm::dot(-1.0f * ab, p_b.normal);
     if (cos_xy_nb <= ERR) { return 0.0f; }
 
-    float nom = glm::abs(cos_xy_na * cos_xy_nb); // normals are expected to be normalized!
+    float nom = cos_xy_na * cos_xy_nb; // normals are expected to be normalized!
 
     return nom / denom;
 }
@@ -112,7 +127,7 @@ float form_factor(const patch &here, const patch &there,
 
     F_ij *= there.area; // there?
 
-    return F_ij / FF_SAMPLES;
+    return F_ij;
 }
 
 void iteration(std::vector<patch> &patches, const bvh_node *world,
@@ -135,14 +150,13 @@ void iteration(std::vector<patch> &patches, const bvh_node *world,
 
     for (auto &p : patches) {
         p.rad = p.rad_new;
-        std::cout << p.rad.r << " " << p.rad.g << " " << p.rad.b << " " << std::endl;
     }
 }
 
 void reinhard(std::vector<patch> &patches) {
     float N = patches.size();
 
-    const glm::vec3 a = glm::vec3(0.9f); // TODO: wtf is mid-gray??
+    const glm::vec3 a = glm::vec3(0.5f); // TODO: wtf is mid-gray??
     glm::vec3 product = glm::vec3(1.0f);
 
     for (auto &p : patches) {

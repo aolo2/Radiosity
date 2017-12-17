@@ -92,7 +92,6 @@ int main() {
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
     glLineWidth(2.0f);
-    glPointSize(5.0f);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -143,10 +142,10 @@ int main() {
     reinhard(patches);
 
     /* Display computation time */
-    seconds = glfwGetTime() - start;
+    seconds = (glfwGetTime() - start) / s.RAD_ITERATIONS / s.FF_SAMPLES;
     minutes = static_cast<int>(seconds / 60);
-    seconds = (int) seconds % 60;
-    std::cout << minutes << "m " << (int) seconds << "s" << std::endl;
+    seconds = seconds - minutes * 60;
+    std::cout << minutes << "m " << seconds << "s per iteration per FF sample" << std::endl;
 
     /* Transform to OpenGL per-vertex format */
     std::vector<float> vertices(glify(patches));
