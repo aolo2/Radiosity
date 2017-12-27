@@ -6,6 +6,11 @@
 
 #include <random>
 
+#ifdef RAYS
+#include <GLFW/glfw3.h>
+
+#endif
+
 
 float area(const patch &p);
 
@@ -28,7 +33,14 @@ void reinhard(std::vector<patch *> &primitives);
 
 
 #ifdef LOCAL
-void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR);
+void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world,
+#ifdef RAYS
+                GLFWwindow *window,
+                GLuint VAO,
+                std::size_t v_size,
+#endif
+
+                float ERR);
 #endif
 
 #endif //RADIOSITY_RADIOSITY_H

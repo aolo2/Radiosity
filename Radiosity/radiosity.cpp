@@ -1,5 +1,12 @@
 #include <iostream>
 #include "radiosity.h"
+#include "utils.h"
+
+#ifdef RAYS
+
+#include <unistd.h>
+
+#endif
 
 std::random_device rd;
 std::mt19937 mt(rd());
@@ -208,70 +215,216 @@ glm::vec3 sample_hemi(const glm::vec3 &normal) {
     return glm::normalize(tan * x + normal * y + bitan * z);
 }
 
-void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR) {
-    /* Local-line stohastic incremental Jacobibi Radiosity (sec. 6.3 Advanced GI) */
-    float total_unshot(0.0f);
-    float last_unshot(0.0f);
-    float total_power(0.0f);
+float inline sum(const glm::vec3 &vec) {
+    return vec.x + vec.y + vec.z;
+}
+
+/* Local-line stohastic incremental Jacobibi Radiosity (sec. 6.3 Advanced GI) */
+void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world,
+#ifdef RAYS
+                GLFWwindow *window,
+                GLuint VAO,
+                std::size_t v_size,
+#endif
+
+                float ERR) {
+
+#ifdef RAYS
+    GLuint rVAO = 0, rVBO = 0;
+#endif
+
+    glm::vec3 super_total_power;
 
     for (auto p : primitives) {
-        p->p_total = p->emit.x * p->area;
-        p->p_unshot = p->emit.x * p->area;
-        p->p_recieved = 0.0f;
-        total_unshot += p->p_unshot;
-        total_power += p->p_total;
+        p->p_total = p->emit * p->area;
+        p->p_unshot = p->emit * p->area;
+        p->p_recieved = glm::vec3(0.0f);
+        super_total_power += p->p_total;
     }
 
-    last_unshot = total_unshot;
+    /* Run the simulation for each wavelength */
+    for (int wave_len = 0; wave_len < 3; ++wave_len) {
 
-    long N_prev;
-    float q;
+        /* Init total powers to zero */
+        float total_unshot(0.0f);
+        float last_unshot(0.0f);
+        float total_power(0.0f);
 
-    while (total_unshot > 1e-10) {
-//    for (int ii = 0; ii < 2; ii++) { // ONLY SECOND BOUNCE (total = received)
-        auto N_samples = (long) (N * last_unshot / total_power);
-        float xi = unilateral(mt);  // (0, 1)
-
-//        std::cout << "Total unshot power = " << total_unshot << std::endl;
-        std::cout << "N: " << N_samples << std::endl;
-
-        N_prev = 0;
-        q = 0;                // stratified imp. sampling
-
+        /* Init power for fixed wavelength */
         for (auto p : primitives) {
-            float q_i = p->p_unshot / total_unshot;
-            q += q_i;
-            long N_i = (long) glm::floor(N_samples * q + xi) - N_prev;
-
-            for (long i = 0; i < N_i; ++i) {
-                glm::vec3 x = sample_point(p);
-
-                // TODO: precomute tangent and bitangent for each patch?
-                ray sample = {x, sample_hemi(p->normal)};
-
-                hit nearest = intersect(sample, world, primitives, ERR);
-                if (nearest.hit && nearest.p != p) {
-                    nearest.p->p_recieved += (1.0f / N_samples) * total_unshot; // * nearest.p->color.x
-                }
-            }
-
-            N_prev += N_i;
+            total_unshot += p->p_unshot[wave_len];
+            total_power += p->p_total[wave_len];
         }
 
         last_unshot = total_unshot;
-        total_power = 0.0f;
-        total_unshot = 0.0f;
 
-        for (auto p : primitives) {
-            p->p_total += p->p_recieved;
-            p->p_unshot = p->p_recieved;
-            p->p_recieved = 0.0f;
-            total_unshot += p->p_unshot;
-            total_power += p->p_total;
+        /* Stratified sampling */
+        long N_prev;
+        float q;
+
+        while (total_unshot > 1e-7) {
+            auto N_samples = (long) (N * last_unshot / sum(super_total_power));
+            float xi = unilateral(mt);
+
+            std::cout << "N["
+                      << ((wave_len == 0) ? "red" : ((wave_len == 1) ? "green" : "blue"))
+                      << "]: "
+                      << N_samples
+                      << std::endl;
+
+            N_prev = 0;
+            q = 0;
+
+            for (auto p : primitives) {
+                q += p->p_unshot[wave_len] / total_unshot;
+                long N_i = (long) glm::floor(N_samples * q + xi) - N_prev;
+
+                for (long i = 0; i < N_i; ++i) {
+                    glm::vec3 x = sample_point(p);
+                    ray sample = {x, sample_hemi(p->normal)}; // TODO: precompute tangent and bi-tangent for each patch?
+
+#ifdef RAYS
+                    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+                    glBindVertexArray(VAO);
+                    glDrawArrays(GL_TRIANGLES, 0, v_size / 3);
+#endif
+
+                    hit nearest = intersect(sample, world, primitives, ERR);
+
+
+#ifdef RAYS
+                    if (nearest.hit) {
+
+                        if (nearest.p == p) {
+                            std::cout << "-" << std::endl;
+                            std::vector<float> ray_verts = {
+                                    nearest.p->vertices[0].x,
+                                    nearest.p->vertices[0].y,
+                                    nearest.p->vertices[0].z,
+
+                                    1.0f, 1.0f, 0.0f,
+
+                                    nearest.p->vertices[1].x,
+                                    nearest.p->vertices[1].y,
+                                    nearest.p->vertices[1].z,
+
+                                    1.0f, 1.0f, 0.0f,
+
+
+                                    nearest.p->vertices[2].x,
+                                    nearest.p->vertices[2].y,
+                                    nearest.p->vertices[2].z,
+
+                                    1.0f, 1.0f, 0.0f,
+                            };
+
+                            init_buffers(&rVAO, &rVBO, ray_verts);
+
+                            glBindVertexArray(rVAO);
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                            glDrawArrays(GL_TRIANGLES, 0, 3);
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                            glBindVertexArray(0);
+                        }
+
+                        std::cout << "+" << std::endl;
+
+                        std::vector<float> ray_verts = {
+                                sample.origin.x,
+                                sample.origin.y,
+                                sample.origin.z,
+                                0.0f, 1.0f, 0.0f,
+
+                                (sample.origin + sample.direction * nearest.t).x,
+                                (sample.origin + sample.direction * nearest.t).y,
+                                (sample.origin + sample.direction * nearest.t).z,
+                                0.0f, 1.0f, 0.0f,
+                        };
+
+                        init_buffers(&rVAO, &rVBO, ray_verts);
+                        glBindVertexArray(rVAO);
+                        glDrawArrays(GL_LINES, 0, 2);
+                        glBindVertexArray(0);
+
+                        ray_verts = {
+                                nearest.p->vertices[0].x,
+                                nearest.p->vertices[0].y,
+                                nearest.p->vertices[0].z,
+
+                                0.0f, 1.0f, 0.0f,
+
+                                nearest.p->vertices[1].x,
+                                nearest.p->vertices[1].y,
+                                nearest.p->vertices[1].z,
+
+                                0.0f, 1.0f, 0.0f,
+
+
+                                nearest.p->vertices[2].x,
+                                nearest.p->vertices[2].y,
+                                nearest.p->vertices[2].z,
+
+                                0.0f, 1.0f, 0.0f,
+                        };
+
+                        init_buffers(&rVAO, &rVBO, ray_verts);
+
+                        glBindVertexArray(rVAO);
+                        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                        glDrawArrays(GL_TRIANGLES, 0, 3);
+                        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                        glBindVertexArray(0);
+
+
+                    } else {
+
+                        std::cout << "-" << std::endl;
+
+                        std::vector<float> ray_verts = {
+                                sample.origin.x,
+                                sample.origin.y,
+                                sample.origin.z,
+                                1.0f, 0.0f, 0.0f,
+
+                                (sample.origin + sample.direction * 5000.0f).x,
+                                (sample.origin + sample.direction * 5000.0f).y,
+                                (sample.origin + sample.direction * 5000.0f).z,
+                                1.0f, 0.0f, 0.0f,
+                        };
+
+                        init_buffers(&rVAO, &rVBO, ray_verts);
+                        glBindVertexArray(rVAO);
+                        glDrawArrays(GL_LINES, 0, 2);
+                        glBindVertexArray(0);
+                    }
+
+                    usleep(500000);
+                    glfwSwapBuffers(window);
+#endif
+
+                    if (nearest.hit && nearest.p != p) {
+                        nearest.p->p_recieved[wave_len] +=
+                                (1.0f / N_samples) * total_unshot * nearest.p->color[wave_len];
+                    }
+                }
+
+                N_prev += N_i;
+            }
+
+            last_unshot = total_unshot;
+            total_power = 0.0f;
+            total_unshot = 0.0f;
+
+            for (auto p : primitives) {
+                p->p_total[wave_len] += p->p_recieved[wave_len];
+                p->p_unshot[wave_len] = p->p_recieved[wave_len];
+                p->p_recieved = glm::vec3(0.0f);
+                total_unshot += p->p_unshot[wave_len];
+                total_power += p->p_total[wave_len];
+            }
         }
     }
-    // display temp results
-    //}
 }
 
 #endif

@@ -54,9 +54,13 @@ std::vector<patch> load_mesh(const std::string &path) {
         std::size_t index_offset = 0;
 
         std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
-//        if (shape.name == "short_block") {
-//            continue;
-//        }
+        if (
+//                shape.name == "short_block"
+//                ||
+                shape.name == "tall_block"
+                ) {
+            continue;
+        }
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -128,25 +132,43 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(p->vertices[0].y);
         vertices.push_back(p->vertices[0].z);
 
-        vertices.push_back(p->p_total);
-        vertices.push_back(p->p_total);
-        vertices.push_back(p->p_total);
+#ifdef RAYS
+        vertices.push_back(1.0f);
+        vertices.push_back(1.0f);
+        vertices.push_back(1.0f);
+#else
+        vertices.push_back(p->p_total.r);
+        vertices.push_back(p->p_total.g);
+        vertices.push_back(p->p_total.b);
+#endif
 
         vertices.push_back(p->vertices[1].x);
         vertices.push_back(p->vertices[1].y);
         vertices.push_back(p->vertices[1].z);
 
-        vertices.push_back(p->p_total);
-        vertices.push_back(p->p_total);
-        vertices.push_back(p->p_total);
+#ifdef RAYS
+        vertices.push_back(1.0f);
+        vertices.push_back(1.0f);
+        vertices.push_back(1.0f);
+#else
+        vertices.push_back(p->p_total.r);
+        vertices.push_back(p->p_total.g);
+        vertices.push_back(p->p_total.b);
+#endif
 
         vertices.push_back(p->vertices[2].x);
         vertices.push_back(p->vertices[2].y);
         vertices.push_back(p->vertices[2].z);
 
-        vertices.push_back(p->p_total);
-        vertices.push_back(p->p_total);
-        vertices.push_back(p->p_total);
+#ifdef RAYS
+        vertices.push_back(1.0f);
+        vertices.push_back(1.0f);
+        vertices.push_back(1.0f);
+#else
+        vertices.push_back(p->p_total.r);
+        vertices.push_back(p->p_total.g);
+        vertices.push_back(p->p_total.b);
+#endif
     }
 
     return vertices;

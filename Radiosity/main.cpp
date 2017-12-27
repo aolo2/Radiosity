@@ -90,6 +90,7 @@ int main() {
     glewInit();
 
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
     glLineWidth(2.0f);
 
@@ -119,21 +120,10 @@ int main() {
     bvh_node *tree = bvh(primitives);
 
 #ifdef DEBUG
-//    GLuint BVH_VAO, BVH_VBO;
-//    std::vector<float> bvh_verts = bvh_debug_vertices(tree, 0);
-//    init_buffers(&BVH_VAO, &BVH_VBO, bvh_verts);
+    //    GLuint BVH_VAO, BVH_VBO;
+    //    std::vector<float> bvh_verts = bvh_debug_vertices(tree, 0);
+    //    init_buffers(&BVH_VAO, &BVH_VBO, bvh_verts);
 
-    GLuint iVAO, iVBO;
-    std::vector<float> Ivertices(glify(primitives));
-    init_buffers(&iVAO, &iVBO, Ivertices);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glBindVertexArray(iVAO);
-    glDrawArrays(GL_TRIANGLES, 0, Ivertices.size() / 3);
-    glBindVertexArray(0);
-    glfwSwapBuffers(window);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
 
@@ -152,8 +142,30 @@ int main() {
 
 
 #ifdef LOCAL
+
+#ifdef RAYS
+    GLuint iVAO, iVBO;
+    std::vector<float> Ivertices(glify(primitives));
+    init_buffers(&iVAO, &iVBO, Ivertices);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBindVertexArray(iVAO);
+    glDrawArrays(GL_TRIANGLES, 0, Ivertices.size() / 3);
+    glBindVertexArray(0);
+    glfwSwapBuffers(window);
+//    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+#endif
+
     /* Local line radiosity */
-    local_line(primitives, s.TOTAL_RAYS, tree, s.ERR);
+    local_line(primitives, s.TOTAL_RAYS, tree,
+#ifdef RAYS
+               window,
+               iVAO,
+               Ivertices.size(),
+#endif
+
+               s.ERR);
     std::cout << "LOCAL LINES DONE" << std::endl;
 #else
     /* Jacobi iterations */
@@ -164,7 +176,7 @@ int main() {
 #endif
 
     /* Tone map */
-//    reinhard(primitives);
+    reinhard(primitives);
 
     /* Display computation time */
     seconds = (glfwGetTime() - start) / s.RAD_ITERATIONS / s.FF_SAMPLES;

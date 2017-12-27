@@ -4,6 +4,7 @@
 #define GLEW_STATIC
 //#define DEBUG       // DEBUG VOLUMES FOR BVH
 #define LOCAL       // LOCAL-LINE RADIOSITY
+#define RAYS
 
 #include <GL/glew.h>
 
@@ -22,9 +23,9 @@ struct patch {
     glm::vec3 emit;
     float area;
 #ifdef LOCAL
-    float p_total;
-    float p_unshot;
-    float p_recieved;
+    glm::vec3 p_total;
+    glm::vec3 p_unshot;
+    glm::vec3 p_recieved;
 #endif
 };
 

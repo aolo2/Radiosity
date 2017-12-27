@@ -173,48 +173,32 @@ bvh_node *bvh(std::vector<patch *> &primitives) {
     return root;
 }
 
-#ifdef LOCAL
-
 hit
-#else
-float
-#endif
 intersect(const ray &r, const bvh_node *node,
           const std::vector<patch *> &primitives, float ERR) {
     float t = INF;
 
     if (!intersect(r, node->box, ERR)) {
 
-#ifdef LOCAL
         hit res = {};
         res.hit = false;
         return res;
-#else
-        return -1.0f;
-#endif
     }
 
-#ifdef LOCAL
     hit ret = {};
     ret.hit = false;
     ret.t = INF;
-#endif
 
     if (node->split == axis::none) {
 
         for (int i = 0; i < node->prim_num; i++) {
             float t_now = intersect(r, *primitives[node->prim_base + i], ERR);
-            if (t_now > 0.0f) {
-#ifdef LOCAL
+            if (t_now > ERR) {
                 if (t_now < ret.t) {
                     ret.t = t_now;
                     ret.hit = true;
                     ret.p = primitives[node->prim_base + i];
                 }
-#else
-                if (t_now > 0.0f)
-#endif
-
             }
         }
     } else {
@@ -238,11 +222,7 @@ intersect(const ray &r, const bvh_node *node,
         }
     }
 
-#ifdef LOCAL
     return ret;
-#else
-    return t;
-#endif
 }
 
 #ifdef DEBUG
