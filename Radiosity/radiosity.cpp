@@ -187,7 +187,7 @@ void reinhard(std::vector<patch *> &primitives) {
 glm::vec3 sample_hemi(const glm::vec3 &normal) {
     glm::vec3 tan;
     if (glm::abs(glm::normalize(normal).y) > 0.99f) {
-        tan = glm::vec3(-1.0f, 0.0f, 0.0f);
+        tan = glm::vec3(1.0f, 0.0f, 0.0f);
     } else {
         tan = glm::normalize(glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), normal));
     }
@@ -202,21 +202,21 @@ glm::vec3 sample_hemi(const glm::vec3 &normal) {
     float phi = 2 * PI * v;
 
     float x = sin_theta * glm::cos(phi);
-    float y = sin_theta * glm::sin(phi);
-    float z = cos_theta;
+    float y = cos_theta;
+    float z = sin_theta * glm::sin(phi);
 
     return glm::normalize(tan * x + normal * y + bitan * z);
 }
 
-void local_line(std::vector<patch *> &primitives, const bvh_node *world, float ERR) {
+void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR) {
     /* Local-line stohastic incremental Jacobibi Radiosity (sec. 6.3 Advanced GI) */
     float total_unshot(0.0f);
     float last_unshot(0.0f);
     float total_power(0.0f);
 
     for (auto p : primitives) {
-        p->p_total = p->emit.x;
-        p->p_unshot = p->emit.x;
+        p->p_total = p->emit.x * p->area;
+        p->p_unshot = p->emit.x * p->area;
         p->p_recieved = 0.0f;
         total_unshot += p->p_unshot;
         total_power += p->p_total;
@@ -224,16 +224,16 @@ void local_line(std::vector<patch *> &primitives, const bvh_node *world, float E
 
     last_unshot = total_unshot;
 
-    long N = 100000; // TODO: compute real approximation
     long N_prev;
     float q;
 
     while (total_unshot > 1e-10) {
+//    for (int ii = 0; ii < 2; ii++) { // ONLY SECOND BOUNCE (total = received)
         auto N_samples = (long) (N * last_unshot / total_power);
         float xi = unilateral(mt);  // (0, 1)
 
 //        std::cout << "Total unshot power = " << total_unshot << std::endl;
-//        std::cout << "N: " << N_samples << std::endl;
+        std::cout << "N: " << N_samples << std::endl;
 
         N_prev = 0;
         q = 0;                // stratified imp. sampling
@@ -250,8 +250,8 @@ void local_line(std::vector<patch *> &primitives, const bvh_node *world, float E
                 ray sample = {x, sample_hemi(p->normal)};
 
                 hit nearest = intersect(sample, world, primitives, ERR);
-                if (nearest.hit) {
-                    nearest.p->p_recieved += (1.0f / N_samples) * nearest.p->color.x * total_unshot;
+                if (nearest.hit && nearest.p != p) {
+                    nearest.p->p_recieved += (1.0f / N_samples) * total_unshot; // * nearest.p->color.x
                 }
             }
 
@@ -269,9 +269,9 @@ void local_line(std::vector<patch *> &primitives, const bvh_node *world, float E
             total_unshot += p->p_unshot;
             total_power += p->p_total;
         }
-
-        // display temp results
     }
+    // display temp results
+    //}
 }
 
 #endif

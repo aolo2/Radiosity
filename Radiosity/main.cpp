@@ -102,6 +102,12 @@ int main() {
     const glm::mat4 proj = glm::perspective(glm::radians(s.FOV), s.ASPECT_RATIO, 1.0f, 10000.0f);
     glm::mat4 view = cam->view_matrix();
 
+    /* Create a shader program and init uniform variables */
+    utils::shader shader("GLSL/pass_3d.vert", "GLSL/white.frag");
+    shader.use_program();
+    shader.set_uniform<glm::mat4>("proj", proj);
+    shader.set_uniform<glm::mat4>("view", view);
+
     /* Load geometry from wavefront obj */
     std::vector<patch> patches = load_mesh(s.mesh_path);
     std::vector<patch *> primitives(patches.size());
@@ -113,9 +119,21 @@ int main() {
     bvh_node *tree = bvh(primitives);
 
 #ifdef DEBUG
-    GLuint BVH_VAO, BVH_VBO;
-    std::vector<float> bvh_verts = bvh_debug_vertices(tree, 0);
-    init_buffers(&BVH_VAO, &BVH_VBO, bvh_verts);
+//    GLuint BVH_VAO, BVH_VBO;
+//    std::vector<float> bvh_verts = bvh_debug_vertices(tree, 0);
+//    init_buffers(&BVH_VAO, &BVH_VBO, bvh_verts);
+
+    GLuint iVAO, iVBO;
+    std::vector<float> Ivertices(glify(primitives));
+    init_buffers(&iVAO, &iVBO, Ivertices);
+
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glBindVertexArray(iVAO);
+    glDrawArrays(GL_TRIANGLES, 0, Ivertices.size() / 3);
+    glBindVertexArray(0);
+    glfwSwapBuffers(window);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 #endif
 
 
@@ -135,7 +153,8 @@ int main() {
 
 #ifdef LOCAL
     /* Local line radiosity */
-    local_line(primitives, tree, s.ERR);
+    local_line(primitives, s.TOTAL_RAYS, tree, s.ERR);
+    std::cout << "LOCAL LINES DONE" << std::endl;
 #else
     /* Jacobi iterations */
     for (int i = 0; i < s.RAD_ITERATIONS; i++) {
@@ -145,13 +164,13 @@ int main() {
 #endif
 
     /* Tone map */
-    reinhard(primitives);
+//    reinhard(primitives);
 
     /* Display computation time */
     seconds = (glfwGetTime() - start) / s.RAD_ITERATIONS / s.FF_SAMPLES;
     minutes = static_cast<int>(seconds / 60);
     seconds = seconds - minutes * 60;
-    std::cout << minutes << "m " << seconds << "s per iteration per FF sample" << std::endl;
+//    std::cout << minutes << "m " << seconds << "s per iteration per FF sample" << std::endl;
 
     /* Transform to OpenGL per-vertex format */
     std::vector<float> vertices(glify(primitives));
@@ -160,13 +179,6 @@ int main() {
     GLuint VAO, VBO;
     init_buffers(&VAO, &VBO, vertices);
 
-    /* Create a shader program and init uniform variables */
-    utils::shader shader("GLSL/pass_3d.vert", "GLSL/white.frag");
-    shader.use_program();
-    shader.set_uniform<glm::mat4>("proj", proj);
-    shader.set_uniform<glm::mat4>("view", view);
-
-
     /* Main draw loop */
     while (glfwWindowShouldClose(window) == 0) {
         glfwPollEvents();
@@ -174,7 +186,7 @@ int main() {
 
         update(shader);
 
-#ifdef DEBUG
+#if 0
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         glEnable(GL_CULL_FACE);
         glBindVertexArray(BVH_VAO);

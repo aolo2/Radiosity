@@ -54,7 +54,7 @@ intersect(const ray &r, const bvh_node *node,
           const std::vector<patch *> &primitives, float ERR);
 
 #ifdef DEBUG
-const int MAX_DEPTH = 6;
+const int MAX_DEPTH = 100;
 std::vector<float> bvh_debug_vertices(const bvh_node *node, int depth);
 #endif
 

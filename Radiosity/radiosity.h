@@ -28,7 +28,7 @@ void reinhard(std::vector<patch *> &primitives);
 
 
 #ifdef LOCAL
-void local_line(std::vector<patch *> &primitives, const bvh_node *world, float ERR);
+void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR);
 #endif
 
 #endif //RADIOSITY_RADIOSITY_H

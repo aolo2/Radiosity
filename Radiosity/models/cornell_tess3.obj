@@ -1,6 +1,6 @@
 # Blender v2.79 (sub 0) OBJ File: ''
 # www.blender.org
-mtllib models/cornell_tess3.mtl
+mtllib models/cornell_tess4.mtl
 o floor
 v 0.000000 0.000000 0.000000
 v 549.599976 -0.000048 559.200012

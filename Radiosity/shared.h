@@ -49,6 +49,7 @@ struct settings {
     float ASPECT_RATIO;
     int RAD_ITERATIONS;
     int FF_SAMPLES;
+    long TOTAL_RAYS;
     glm::vec3 camera_pos;
     std::string mesh_path;
 };

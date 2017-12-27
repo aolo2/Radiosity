@@ -21,7 +21,8 @@ settings load_settings(const std::string &path) {
          >> s.camera_pos.x
          >> s.camera_pos.y
          >> s.camera_pos.z
-         >> s.mesh_path;
+         >> s.mesh_path
+         >> s.TOTAL_RAYS;
 
     s.ASPECT_RATIO =
             static_cast<float>(s.WINDOW_WIDTH) /
@@ -53,6 +54,9 @@ std::vector<patch> load_mesh(const std::string &path) {
         std::size_t index_offset = 0;
 
         std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
+//        if (shape.name == "short_block") {
+//            continue;
+//        }
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -91,16 +95,21 @@ std::vector<patch> load_mesh(const std::string &path) {
 
 
             p.color = glm::vec3(
-                    1.0f,
+                    materials[current_material_id].diffuse[0],
                     materials[current_material_id].diffuse[1],
                     materials[current_material_id].diffuse[2]);
+
+#ifdef DEBUG
+            p.p_total = 1.0f;
+#endif
+
 
             p.area = area(p);
 
             p.emit = glm::vec3(
-                    materials[current_material_id].ambient[0] * 20.0f,
-                    materials[current_material_id].ambient[1] * 20.0f,
-                    materials[current_material_id].ambient[2] * 20.0f);
+                    materials[current_material_id].ambient[0],
+                    materials[current_material_id].ambient[1],
+                    materials[current_material_id].ambient[2]);
 
             patches.push_back(p);
 

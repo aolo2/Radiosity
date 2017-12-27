@@ -206,9 +206,11 @@ intersect(const ray &r, const bvh_node *node,
             float t_now = intersect(r, *primitives[node->prim_base + i], ERR);
             if (t_now > 0.0f) {
 #ifdef LOCAL
-                ret.t = std::min(ret.t, t_now);
-                ret.hit = true;
-                ret.p = primitives[node->prim_base + i];
+                if (t_now < ret.t) {
+                    ret.t = t_now;
+                    ret.hit = true;
+                    ret.p = primitives[node->prim_base + i];
+                }
 #else
                 if (t_now > 0.0f)
 #endif
@@ -220,15 +222,19 @@ intersect(const ray &r, const bvh_node *node,
         auto hit_c1 = intersect(r, node->children[1], primitives, ERR);
 
         if (hit_c0.hit && hit_c0.t > ERR) {
-            ret.t = std::min(ret.t, hit_c0.t);
-            ret.p = hit_c0.p;
-            ret.hit = true;
+            if (hit_c0.t < ret.t) {
+                ret.t = hit_c0.t;
+                ret.p = hit_c0.p;
+                ret.hit = true;
+            }
         }
 
         if (hit_c1.hit && hit_c1.t > ERR) {
-            ret.t = std::min(ret.t, hit_c1.t);
-            ret.p = hit_c1.p;
-            ret.hit = true;
+            if (hit_c1.t < ret.t) {
+                ret.t = hit_c1.t;
+                ret.p = hit_c1.p;
+                ret.hit = true;
+            }
         }
     }
 
