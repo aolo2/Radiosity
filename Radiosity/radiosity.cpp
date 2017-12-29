@@ -231,6 +231,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
 
 #ifdef RAYS
     GLuint rVAO = 0, rVBO = 0;
+    std::vector<float> hitted;
 #endif
 
     glm::vec3 super_total_power;
@@ -262,6 +263,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
         long N_prev;
         float q;
 
+        /* Incremental shooting */
         while (total_unshot > 1e-7) {
             auto N_samples = (long) (N * last_unshot / sum(super_total_power));
             float xi = unilateral(mt);
@@ -287,6 +289,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
                     glBindVertexArray(VAO);
+//                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
                     glDrawArrays(GL_TRIANGLES, 0, v_size / 3);
 #endif
 
@@ -297,7 +300,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                     if (nearest.hit) {
 
                         if (nearest.p == p) {
-                            std::cout << "-" << std::endl;
+//                            std::cout << "-" << std::endl;
                             std::vector<float> ray_verts = {
                                     nearest.p->vertices[0].x,
                                     nearest.p->vertices[0].y,
@@ -310,7 +313,6 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                                     nearest.p->vertices[1].z,
 
                                     1.0f, 1.0f, 0.0f,
-
 
                                     nearest.p->vertices[2].x,
                                     nearest.p->vertices[2].y,
@@ -326,60 +328,60 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                             glDrawArrays(GL_TRIANGLES, 0, 3);
                             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
                             glBindVertexArray(0);
+                        } else {
+
+//                        std::cout << "+" << std::endl;
+
+                            std::vector<float> ray_verts = {
+                                    sample.origin.x,
+                                    sample.origin.y,
+                                    sample.origin.z,
+                                    0.0f, 1.0f, 0.0f,
+
+                                    (sample.origin + sample.direction * nearest.t).x,
+                                    (sample.origin + sample.direction * nearest.t).y,
+                                    (sample.origin + sample.direction * nearest.t).z,
+                                    0.0f, 1.0f, 0.0f,
+                            };
+
+                            init_buffers(&rVAO, &rVBO, ray_verts);
+
+                            glBindVertexArray(rVAO);
+                            glDrawArrays(GL_LINES, 0, 2);
+                            glBindVertexArray(0);
+
+                            ray_verts = {
+                                    nearest.p->vertices[0].x,
+                                    nearest.p->vertices[0].y,
+                                    nearest.p->vertices[0].z,
+
+                                    0.0f, 1.0f, 0.0f,
+
+                                    nearest.p->vertices[1].x,
+                                    nearest.p->vertices[1].y,
+                                    nearest.p->vertices[1].z,
+
+                                    0.0f, 1.0f, 0.0f,
+
+                                    nearest.p->vertices[2].x,
+                                    nearest.p->vertices[2].y,
+                                    nearest.p->vertices[2].z,
+
+                                    0.0f, 1.0f, 0.0f,
+                            };
+
+                            hitted.insert(hitted.end(), ray_verts.begin(), ray_verts.end());
+                            init_buffers(&rVAO, &rVBO, hitted);
+
+                            glBindVertexArray(rVAO);
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+                            glDrawArrays(GL_TRIANGLES, 0, hitted.size() / 3);
+                            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+                            glBindVertexArray(0);
                         }
-
-                        std::cout << "+" << std::endl;
-
-                        std::vector<float> ray_verts = {
-                                sample.origin.x,
-                                sample.origin.y,
-                                sample.origin.z,
-                                0.0f, 1.0f, 0.0f,
-
-                                (sample.origin + sample.direction * nearest.t).x,
-                                (sample.origin + sample.direction * nearest.t).y,
-                                (sample.origin + sample.direction * nearest.t).z,
-                                0.0f, 1.0f, 0.0f,
-                        };
-
-                        init_buffers(&rVAO, &rVBO, ray_verts);
-                        glBindVertexArray(rVAO);
-                        glDrawArrays(GL_LINES, 0, 2);
-                        glBindVertexArray(0);
-
-                        ray_verts = {
-                                nearest.p->vertices[0].x,
-                                nearest.p->vertices[0].y,
-                                nearest.p->vertices[0].z,
-
-                                0.0f, 1.0f, 0.0f,
-
-                                nearest.p->vertices[1].x,
-                                nearest.p->vertices[1].y,
-                                nearest.p->vertices[1].z,
-
-                                0.0f, 1.0f, 0.0f,
-
-
-                                nearest.p->vertices[2].x,
-                                nearest.p->vertices[2].y,
-                                nearest.p->vertices[2].z,
-
-                                0.0f, 1.0f, 0.0f,
-                        };
-
-                        init_buffers(&rVAO, &rVBO, ray_verts);
-
-                        glBindVertexArray(rVAO);
-                        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                        glDrawArrays(GL_TRIANGLES, 0, 3);
-                        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                        glBindVertexArray(0);
-
-
                     } else {
 
-                        std::cout << "-" << std::endl;
+//                        std::cout << "-" << std::endl;
 
                         std::vector<float> ray_verts = {
                                 sample.origin.x,
@@ -399,7 +401,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                         glBindVertexArray(0);
                     }
 
-                    usleep(500000);
+//                    usleep(100000);
                     glfwSwapBuffers(window);
 #endif
 
@@ -422,6 +424,31 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                 p->p_recieved = glm::vec3(0.0f);
                 total_unshot += p->p_unshot[wave_len];
                 total_power += p->p_total[wave_len];
+            }
+        }
+
+        /* Regular gathering */
+        auto N_gather = (long) (1.0f / 3.0f * N);
+
+        for (int i = 0; i < 1; ++i) {
+            for (auto p : primitives) {
+                long N_i = N_gather / primitives.size();
+
+                float this_p_total = 0.0f;
+                int hit_n = 0;
+
+                for (long j = 0; j < N_i; ++j) {
+                    glm::vec3 x = sample_point(p);
+                    ray sample = {x, sample_hemi(p->normal)};
+                    hit nearest = intersect(sample, world, primitives, ERR);
+
+                    if (nearest.hit && nearest.p != p) {
+                        this_p_total += nearest.p->p_total[wave_len];
+                        hit_n++;
+                    }
+                }
+
+                p->p_total[wave_len] = p->emit[wave_len] + p->color[wave_len] * this_p_total / hit_n;
             }
         }
     }

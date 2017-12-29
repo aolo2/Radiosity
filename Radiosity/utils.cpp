@@ -54,13 +54,13 @@ std::vector<patch> load_mesh(const std::string &path) {
         std::size_t index_offset = 0;
 
         std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
-        if (
+//        if (
 //                shape.name == "short_block"
 //                ||
-                shape.name == "tall_block"
-                ) {
-            continue;
-        }
+//                shape.name == "tall_block"
+//                ) {
+//            continue;
+//        }
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -133,9 +133,9 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(p->vertices[0].z);
 
 #ifdef RAYS
-        vertices.push_back(1.0f);
-        vertices.push_back(1.0f);
-        vertices.push_back(1.0f);
+        vertices.push_back(0.5f);
+        vertices.push_back(0.5f);
+        vertices.push_back(0.5f);
 #else
         vertices.push_back(p->p_total.r);
         vertices.push_back(p->p_total.g);
@@ -147,9 +147,9 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(p->vertices[1].z);
 
 #ifdef RAYS
-        vertices.push_back(1.0f);
-        vertices.push_back(1.0f);
-        vertices.push_back(1.0f);
+        vertices.push_back(0.5f);
+        vertices.push_back(0.5f);
+        vertices.push_back(0.5f);
 #else
         vertices.push_back(p->p_total.r);
         vertices.push_back(p->p_total.g);
@@ -161,9 +161,9 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(p->vertices[2].z);
 
 #ifdef RAYS
-        vertices.push_back(1.0f);
-        vertices.push_back(1.0f);
-        vertices.push_back(1.0f);
+        vertices.push_back(0.5f);
+        vertices.push_back(0.5f);
+        vertices.push_back(0.5f);
 #else
         vertices.push_back(p->p_total.r);
         vertices.push_back(p->p_total.g);

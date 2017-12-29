@@ -4,7 +4,7 @@
 #define GLEW_STATIC
 //#define DEBUG       // DEBUG VOLUMES FOR BVH
 #define LOCAL       // LOCAL-LINE RADIOSITY
-#define RAYS
+//#define RAYS      // DEBUG-VIEW FOR RAYS
 
 #include <GL/glew.h>
 
