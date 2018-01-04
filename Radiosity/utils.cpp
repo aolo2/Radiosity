@@ -104,7 +104,7 @@ std::vector<patch> load_mesh(const std::string &path) {
                     materials[current_material_id].diffuse[2]);
 
 #ifdef DEBUG
-            p.p_total = 1.0f;
+            p.p_total = glm::vec3(1.0f);
 #endif
 
 

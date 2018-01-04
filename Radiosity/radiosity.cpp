@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include "radiosity.h"
 #include "utils.h"
 
@@ -233,14 +234,13 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
     GLuint rVAO = 0, rVBO = 0;
     std::vector<float> hitted;
 #endif
-
-    glm::vec3 super_total_power;
+    float total_area = 0.0f;
 
     for (auto p : primitives) {
         p->p_total = p->emit * p->area;
         p->p_unshot = p->emit * p->area;
         p->p_recieved = glm::vec3(0.0f);
-        super_total_power += p->p_total;
+        total_area += p->area;
     }
 
     /* Run the simulation for each wavelength */
@@ -265,14 +265,11 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
 
         /* Incremental shooting */
         while (total_unshot > 1e-7) {
-            auto N_samples = (long) (N * last_unshot / sum(super_total_power));
+
+            auto N_samples = (long) (N * last_unshot / total_power);
             float xi = unilateral(mt);
 
-            std::cout << "N["
-                      << ((wave_len == 0) ? "red" : ((wave_len == 1) ? "green" : "blue"))
-                      << "]: "
-                      << N_samples
-                      << std::endl;
+            std::cout << "Total unshot power: " << total_unshot << "\r" << std::flush;
 
             N_prev = 0;
             q = 0;
@@ -401,7 +398,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                         glBindVertexArray(0);
                     }
 
-//                    usleep(100000);
+                    //usleep(100000);
                     glfwSwapBuffers(window);
 #endif
 
@@ -428,14 +425,18 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
         }
 
         /* Regular gathering */
-        auto N_gather = (long) (1.0f / 3.0f * N);
+        for (int i = 0; i < 0; ++i) {
+            auto N_gather = (long) (1.0f / 3.0f * N);
+            float xi = unilateral(mt);
 
-        for (int i = 0; i < 1; ++i) {
+            N_prev = 0;
+            q = 0;
+
             for (auto p : primitives) {
-                long N_i = N_gather / primitives.size();
+                q += p->area / total_area;
+                long N_i = (long) glm::floor(N_gather * q + xi) - N_prev ;
 
                 float this_p_total = 0.0f;
-                int hit_n = 0;
 
                 for (long j = 0; j < N_i; ++j) {
                     glm::vec3 x = sample_point(p);
@@ -443,14 +444,17 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                     hit nearest = intersect(sample, world, primitives, ERR);
 
                     if (nearest.hit && nearest.p != p) {
-                        this_p_total += nearest.p->p_total[wave_len];
-                        hit_n++;
+                        this_p_total += nearest.p->p_total[wave_len] / N_gather;
                     }
                 }
 
-                p->p_total[wave_len] = p->emit[wave_len] + p->color[wave_len] * this_p_total / hit_n;
+                p->p_total[wave_len] = p->emit[wave_len] + p->color[wave_len] * this_p_total;
+                // std::cout << this_p_total << std::endl;
+                N_prev += N_i;
             }
         }
+
+        std::cout << "\nDone." << std::endl;
     }
 }
 
