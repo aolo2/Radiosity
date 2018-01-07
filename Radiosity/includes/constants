@@ -1,8 +1,8 @@
-512 512
+1024 1024
 1e-6
 50.0
 4
 2
 278.0 273.0 -800.0
-models/cornell_tess4.obj
+models/cornell_simple_low.obj
 1000000

@@ -1,4 +1,4 @@
-#include "camera.h"
+#include "../includes/camera.h"
 
 #include <GLFW/glfw3.h>
 #include <iostream>

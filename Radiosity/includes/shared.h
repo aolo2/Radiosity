@@ -23,9 +23,11 @@ struct patch {
     glm::vec3 emit;
     float area;
 #ifdef LOCAL
+    glm::vec3 p_total_new;
     glm::vec3 p_total;
     glm::vec3 p_unshot;
     glm::vec3 p_recieved;
+    std::string obj_name;
 #endif
 };
 

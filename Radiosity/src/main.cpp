@@ -1,8 +1,8 @@
-#include "shader.h"
-#include "camera.h"
-#include "utils.h"
-#include "radiosity.h"
-#include "bvh.h"
+#include "../includes/shader.h"
+#include "../includes/camera.h"
+#include "../includes/utils.h"
+#include "../includes/radiosity.h"
+#include "../includes/bvh.h"
 
 #include <GLFW/glfw3.h>
 
@@ -75,7 +75,7 @@ int main() {
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
     /* Load constants */
-    settings s = load_settings("constants");
+    settings s = load_settings("includes/constants");
 
     /* Create a window and set callbacks, etc. */
     GLFWwindow *window = glfwCreateWindow(s.WINDOW_WIDTH, s.WINDOW_HEIGHT, "", nullptr, nullptr);
@@ -104,7 +104,7 @@ int main() {
     glm::mat4 view = cam->view_matrix();
 
     /* Create a shader program and init uniform variables */
-    utils::shader shader("GLSL/pass_3d.vert", "GLSL/white.frag");
+    utils::shader shader("glsl/pass_3d.vert", "glsl/white.frag");
     shader.use_program();
     shader.set_uniform<glm::mat4>("proj", proj);
     shader.set_uniform<glm::mat4>("view", view);

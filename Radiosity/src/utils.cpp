@@ -1,8 +1,8 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 
-#include "tiny_obj_loader.h"
-#include "utils.h"
-#include "radiosity.h"
+#include "../includes/tiny_obj_loader.h"
+#include "../includes/utils.h"
+#include "../includes/radiosity.h"
 
 #include <dirent.h>
 #include <iostream>
@@ -97,6 +97,8 @@ std::vector<patch> load_mesh(const std::string &path) {
                 continue;
             }
 
+            p.obj_name = shape.name;
+
 
             p.color = glm::vec3(
                     materials[current_material_id].diffuse[0],
@@ -138,8 +140,8 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(0.5f);
 #else
         vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.g);
-        vertices.push_back(p->p_total.b);
+        vertices.push_back(p->p_total.r);
+        vertices.push_back(p->p_total.r);
 #endif
 
         vertices.push_back(p->vertices[1].x);
@@ -152,8 +154,8 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(0.5f);
 #else
         vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.g);
-        vertices.push_back(p->p_total.b);
+        vertices.push_back(p->p_total.r);
+        vertices.push_back(p->p_total.r);
 #endif
 
         vertices.push_back(p->vertices[2].x);
@@ -166,8 +168,8 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(0.5f);
 #else
         vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.g);
-        vertices.push_back(p->p_total.b);
+        vertices.push_back(p->p_total.r);
+        vertices.push_back(p->p_total.r);
 #endif
     }
 
