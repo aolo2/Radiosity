@@ -8,8 +8,10 @@ settings load_settings(const std::string &path);
 
 std::vector<patch> load_mesh(const std::string &path);
 
-std::vector<float> glify(const std::vector<patch *> &primitives);
+std::vector<float> glify(const std::vector<patch *> &primitives, bool fill);
 
-void init_buffers(GLuint *VAO, GLuint *VBO, const std::vector<float> &vertices);
+void init_buffers(GLuint *VAO, GLuint *VBO, std::vector<float> &vertices);
+
+void update_buffers(GLuint *VAO, GLuint *VBO, std::vector<float> &vertices);
 
 #endif //RADIOSITY_UTILS_H

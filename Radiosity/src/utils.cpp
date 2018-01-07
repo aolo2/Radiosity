@@ -53,14 +53,7 @@ std::vector<patch> load_mesh(const std::string &path) {
     for (auto &shape : shapes) {
         std::size_t index_offset = 0;
 
-        std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
-//        if (
-//                shape.name == "short_block"
-//                ||
-//                shape.name == "tall_block"
-//                ) {
-//            continue;
-//        }
+//        std::cout << "Loading object \'" << shape.name << "\'" << std::endl;
 
         /* Vertices */
         for (std::size_t f = 0; f < shape.mesh.num_face_vertices.size(); f++) {
@@ -97,18 +90,10 @@ std::vector<patch> load_mesh(const std::string &path) {
                 continue;
             }
 
-            p.obj_name = shape.name;
-
-
             p.color = glm::vec3(
                     materials[current_material_id].diffuse[0],
                     materials[current_material_id].diffuse[1],
                     materials[current_material_id].diffuse[2]);
-
-#ifdef DEBUG
-            p.p_total = glm::vec3(1.0f);
-#endif
-
 
             p.area = area(p);
 
@@ -126,7 +111,7 @@ std::vector<patch> load_mesh(const std::string &path) {
     return patches;
 }
 
-std::vector<float> glify(const std::vector<patch *> &primitives) {
+std::vector<float> glify(const std::vector<patch *> &primitives, bool fill) {
     std::vector<float> vertices;
 
     for (const auto p : primitives) {
@@ -134,56 +119,52 @@ std::vector<float> glify(const std::vector<patch *> &primitives) {
         vertices.push_back(p->vertices[0].y);
         vertices.push_back(p->vertices[0].z);
 
-#ifdef RAYS
-        vertices.push_back(0.5f);
-        vertices.push_back(0.5f);
-        vertices.push_back(0.5f);
-#else
-        vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.r);
-#endif
+        vertices.push_back(fill ? 0.6f : p->p_total.r);
+        vertices.push_back(fill ? 0.6f : p->p_total.g);
+        vertices.push_back(fill ? 0.6f : p->p_total.b);
 
         vertices.push_back(p->vertices[1].x);
         vertices.push_back(p->vertices[1].y);
         vertices.push_back(p->vertices[1].z);
 
-#ifdef RAYS
-        vertices.push_back(0.5f);
-        vertices.push_back(0.5f);
-        vertices.push_back(0.5f);
-#else
-        vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.r);
-#endif
+        vertices.push_back(fill ? 0.6f : p->p_total.r);
+        vertices.push_back(fill ? 0.6f : p->p_total.g);
+        vertices.push_back(fill ? 0.6f : p->p_total.b);
 
         vertices.push_back(p->vertices[2].x);
         vertices.push_back(p->vertices[2].y);
         vertices.push_back(p->vertices[2].z);
 
-#ifdef RAYS
-        vertices.push_back(0.5f);
-        vertices.push_back(0.5f);
-        vertices.push_back(0.5f);
-#else
-        vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.r);
-        vertices.push_back(p->p_total.r);
-#endif
+        vertices.push_back(fill ? 0.6f : p->p_total.r);
+        vertices.push_back(fill ? 0.6f : p->p_total.g);
+        vertices.push_back(fill ? 0.6f : p->p_total.b);
     }
 
     return vertices;
 }
 
-void init_buffers(GLuint *VAO, GLuint *VBO, const std::vector<float> &vertices) {
+void update_buffers(GLuint *VAO, GLuint *VBO, std::vector<float> &vertices) {
+    glBindVertexArray(*VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, *VBO);
+
+    glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.size() * sizeof(GLfloat), vertices.data());
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) 0);
+    glEnableVertexAttribArray(0); // position
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) (3 * sizeof(GLfloat)));
+    glEnableVertexAttribArray(1); // color
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+}
+
+void init_buffers(GLuint *VAO, GLuint *VBO, std::vector<float> &vertices) {
     glGenVertexArrays(1, VAO);
     glGenBuffers(1, VBO);
 
     glBindVertexArray(*VAO);
     glBindBuffer(GL_ARRAY_BUFFER, *VBO);
 
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(GLfloat), vertices.data(), GL_DYNAMIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) 0);
     glEnableVertexAttribArray(0); // position
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), (GLvoid *) (3 * sizeof(GLfloat)));

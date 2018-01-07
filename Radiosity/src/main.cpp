@@ -12,6 +12,8 @@ bool cam_interactive = false;
 bool first_call = true;
 double last_x, last_y;
 
+std::atomic<bool> finished_radiosity(false);
+
 /* Cursor movement fires this callback */
 void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
     double x_offset = 0.0, y_offset = 0.0;
@@ -45,9 +47,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
                 glfwSetInputMode(window, GLFW_CURSOR,
                                  cam_interactive ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL);
 
-                std::cout << "Interactive camera mode "
-                          << (cam_interactive ? "ENABLED" : "DISABLED")
-                          << std::endl;
+//                std::cout << "Interactive camera mode "
+//                          << (cam_interactive ? "ENABLED" : "DISABLED")
+//                          << std::endl;
             default:
                 break;
         }
@@ -63,6 +65,55 @@ void update(const utils::shader &s) {
     }
 
     s.set_uniform<glm::mat4>("view", cam->view_matrix());
+}
+
+void startup(std::vector<patch> &patches,
+             std::vector<patch *> &primitives,
+             std::vector<float> &vertices,
+             bvh_node **tree,
+             const settings &s,
+             GLuint *VAO,
+             GLuint *VBO) {
+
+    std::cout << "Loading mesh... " << std::flush;
+    patches = load_mesh(s.mesh_path);
+    std::cout << "DONE" << std::endl;
+
+    for (auto &patch : patches) {
+        primitives.push_back(&patch);
+    }
+
+    std::cout << "Creating the BVH... " << std::flush;
+    *tree = bvh(primitives);
+    std::cout << "DONE" << std::endl;
+
+    std::cout << "Initializing OpenGL buffers... " << std::flush;
+    vertices = glify(primitives, true);
+    init_buffers(VAO, VBO, vertices);
+    std::cout << "DONE" << std::endl;
+}
+
+void radiate(std::vector<patch> &patches,
+             std::vector<patch *> &primitives,
+             std::vector<float> &vertices,
+             bvh_node **tree,
+             const settings &s) {
+
+    std::cout << "Staring MC Radiosity... " << std::endl;
+
+    /* Local line radiosity */
+    local_line(primitives, s.TOTAL_RAYS, *tree, s.ERR);
+
+    /* Tone map */
+    std::cout << "Tone mapping... " << std::flush;
+    reinhard(primitives);
+    std::cout << "DONE" << std::endl;
+
+    /* Transform to OpenGL per-vertex format */
+    std::cout << "Updating OpenGL buffers... " << std::flush;
+    vertices = glify(primitives, false);
+    finished_radiosity = true;
+    std::cout << "DONE" << std::endl;
 }
 
 int main() {
@@ -90,8 +141,9 @@ int main() {
     glewInit();
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
+//    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glLineWidth(2.0f);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -109,87 +161,20 @@ int main() {
     shader.set_uniform<glm::mat4>("proj", proj);
     shader.set_uniform<glm::mat4>("view", view);
 
-    /* Load geometry from wavefront obj */
-    std::vector<patch> patches = load_mesh(s.mesh_path);
-    std::vector<patch *> primitives(patches.size());
-
-    for (auto i = 0; i < patches.size(); i++) {
-        primitives[i] = &patches[i];
-    }
-
-    bvh_node *tree = bvh(primitives);
-
-#ifdef DEBUG
-    //    GLuint BVH_VAO, BVH_VBO;
-    //    std::vector<float> bvh_verts = bvh_debug_vertices(tree, 0);
-    //    init_buffers(&BVH_VAO, &BVH_VBO, bvh_verts);
-
-#endif
-
-
-    /* Start keeping the time */
-    double start = glfwGetTime();
-    double seconds, minutes;
-
-    std::vector<object> objects;
-
-    /* (-1)th iteration of radiosity  */
-    for (auto &o : objects) {
-        for (auto &p : o.patches) {
-            p.rad = p.emit;
-        }
-    }
-
-
-#ifdef LOCAL
-
-#ifdef RAYS
-    GLuint iVAO, iVBO;
-    std::vector<float> Ivertices(glify(primitives));
-    init_buffers(&iVAO, &iVBO, Ivertices);
-
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glBindVertexArray(iVAO);
-    glDrawArrays(GL_TRIANGLES, 0, Ivertices.size() / 3);
-    glBindVertexArray(0);
-    glfwSwapBuffers(window);
-//    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
-
-    /* Local line radiosity */
-    local_line(primitives, s.TOTAL_RAYS, tree,
-#ifdef RAYS
-               window,
-               iVAO,
-               Ivertices.size(),
-#endif
-
-               s.ERR);
-    std::cout << "LOCAL LINES DONE" << std::endl;
-#else
-    /* Jacobi iterations */
-    for (int i = 0; i < s.RAD_ITERATIONS; i++) {
-        iteration(tree, primitives, s.ERR, s.FF_SAMPLES);
-        std::cout << "Iteration " << i + 1 << "/" << s.RAD_ITERATIONS << " complete" << std::endl;
-    }
-#endif
-
-    /* Tone map */
-    reinhard(primitives);
-
-    /* Display computation time */
-    seconds = (glfwGetTime() - start) / s.RAD_ITERATIONS / s.FF_SAMPLES;
-    minutes = static_cast<int>(seconds / 60);
-    seconds = seconds - minutes * 60;
-//    std::cout << minutes << "m " << seconds << "s per iteration per FF sample" << std::endl;
-
-    /* Transform to OpenGL per-vertex format */
-    std::vector<float> vertices(glify(primitives));
-
-    /* Init OpenGL buffers */
     GLuint VAO, VBO;
-    init_buffers(&VAO, &VBO, vertices);
+
+    std::vector<patch> patches;
+    std::vector<patch *> primitives;
+    std::vector<float> vertices;
+    bvh_node *tree;
+
+    startup(patches, primitives, vertices, &tree, s, &VAO, &VBO);
+
+    std::thread t1(radiate,
+                   std::ref(patches),
+                   std::ref(primitives),
+                   std::ref(vertices),
+                   &tree, s);
 
     /* Main draw loop */
     while (glfwWindowShouldClose(window) == 0) {
@@ -198,15 +183,11 @@ int main() {
 
         update(shader);
 
-#if 0
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        glEnable(GL_CULL_FACE);
-        glBindVertexArray(BVH_VAO);
-        glDrawArrays(GL_TRIANGLES, 0, bvh_verts.size() / 3);
-        glBindVertexArray(0);
-        glDisable(GL_CULL_FACE);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-#endif
+        if (finished_radiosity) {
+            update_buffers(&VAO, &VBO, vertices);
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+            finished_radiosity = false;
+        }
 
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 3);
@@ -215,6 +196,8 @@ int main() {
         glfwSwapBuffers(window);
     }
 
+
+    t1.join();
 
     /* Clean up */
     glBindBuffer(GL_ARRAY_BUFFER, 0);

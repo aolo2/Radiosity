@@ -2,15 +2,15 @@
 #define RADIOSITY_SHARED_H
 
 #define GLEW_STATIC
-//#define DEBUG       // DEBUG VOLUMES FOR BVH
-#define LOCAL       // LOCAL-LINE RADIOSITY
-//#define RAYS      // DEBUG-VIEW FOR RAYS
 
 #include <GL/glew.h>
 
 #include <glm/glm.hpp>
 #include <vector>
 #include <string>
+
+#include <thread>
+#include <atomic>
 
 const float INF = std::numeric_limits<float>::infinity();
 
@@ -22,22 +22,17 @@ struct patch {
     glm::vec3 rad_new;
     glm::vec3 emit;
     float area;
-#ifdef LOCAL
     glm::vec3 p_total_new;
     glm::vec3 p_total;
     glm::vec3 p_unshot;
     glm::vec3 p_recieved;
-    std::string obj_name;
-#endif
 };
 
-#ifdef LOCAL
 struct hit {
     bool hit;
     float t;
     patch *p;
 };
-#endif
 
 struct ray {
     glm::vec3 origin;

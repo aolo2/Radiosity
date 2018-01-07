@@ -4,12 +4,6 @@
 #include "../includes/radiosity.h"
 #include "../includes/utils.h"
 
-#ifdef RAYS
-
-#include <unistd.h>
-
-#endif
-
 std::random_device rd;
 std::mt19937 mt(rd());
 std::uniform_real_distribution<float> unilateral(0.0f, 1.0);
@@ -78,28 +72,6 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch *p_b,
     r.direction = glm::normalize(b - a);
 
     float t_other_b = intersect(r, *p_b, ERR);
-#ifndef LOCAL
-    float t_world = intersect(r, world, primitives, ERR);
-#endif
-
-#if 0
-    float t = INF;
-    for (auto p : primitives) {
-        float t_now = intersect(r, *p, ERR);
-        if (t_now > ERR && t_now < t_other_b) {
-            t = std::min(t, t_now);
-        }
-    }
-
-//    if (t > ERR && t < t_other_b) {
-//        std::cout << t_world - t << std::endl;
-//    }
-    return !(t < t_other_b && t > ERR);
-#endif
-
-#ifndef LOCAL
-    return !(t_world > ERR && t_world < t_other_b);
-#endif
     return false;
 }
 
@@ -191,8 +163,6 @@ void reinhard(std::vector<patch *> &primitives) {
     }
 }
 
-#ifdef LOCAL
-
 glm::vec3 sample_hemi(const glm::vec3 &normal) {
     glm::vec3 tan;
     if (glm::abs(glm::normalize(normal).y) > 0.999f) {
@@ -222,19 +192,8 @@ float inline sum(const glm::vec3 &vec) {
 }
 
 /* Local-line stohastic incremental Jacobibi Radiosity (sec. 6.3 Advanced GI) */
-void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world,
-#ifdef RAYS
-GLFWwindow *window,
-GLuint VAO,
-std::size_t v_size,
-#endif
+void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR) {
 
-                float ERR) {
-
-#ifdef RAYS
-    GLuint rVAO = 0, rVBO = 0;
-    std::vector<float> hitted;
-#endif
     float total_area = 0.0f;
 
     for (auto p : primitives) {
@@ -245,7 +204,7 @@ std::size_t v_size,
     }
 
     /* Run the simulation for each wavelength */
-    for (int wave_len = 0; wave_len < 1; ++wave_len) {
+    for (int wave_len = 0; wave_len < 3; ++wave_len) {
 
         /* Init total powers to zero */
         float total_unshot(0.0f);
@@ -311,7 +270,7 @@ std::size_t v_size,
 
         std::cout << std::endl;
 
-        int GATHER_ITERATIONS = 1;
+        int GATHER_ITERATIONS = 0;
 
         /* Regular gathering */
         for (int i = 0; i < GATHER_ITERATIONS; ++i) {
@@ -324,128 +283,6 @@ std::size_t v_size,
                     glm::vec3 x = sample_point(p);
                     ray sample = {x, sample_hemi(p->normal)};
                     hit nearest = intersect(sample, world, primitives, ERR);
-
-                    if (p->obj_name == "short_block" && p->normal.y > 0.99f) {
-#ifdef RAYS
-                        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-                        glBindVertexArray(VAO);
-//                    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                        glDrawArrays(GL_TRIANGLES, 0, v_size / 3);
-#endif
-
-
-
-
-#ifdef RAYS
-                        if (nearest.hit) {
-
-                            if (nearest.p == p) {
-//                            std::cout << "-" << std::endl;
-                                std::vector<float> ray_verts = {
-                                        nearest.p->vertices[0].x,
-                                        nearest.p->vertices[0].y,
-                                        nearest.p->vertices[0].z,
-
-                                        1.0f, 1.0f, 0.0f,
-
-                                        nearest.p->vertices[1].x,
-                                        nearest.p->vertices[1].y,
-                                        nearest.p->vertices[1].z,
-
-                                        1.0f, 1.0f, 0.0f,
-
-                                        nearest.p->vertices[2].x,
-                                        nearest.p->vertices[2].y,
-                                        nearest.p->vertices[2].z,
-
-                                        1.0f, 1.0f, 0.0f,
-                                };
-
-                                init_buffers(&rVAO, &rVBO, ray_verts);
-
-                                glBindVertexArray(rVAO);
-                                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                                glDrawArrays(GL_TRIANGLES, 0, 3);
-                                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                                glBindVertexArray(0);
-                            } else {
-
-//                        std::cout << "+" << std::endl;
-
-                                std::vector<float> ray_verts = {
-                                        sample.origin.x,
-                                        sample.origin.y,
-                                        sample.origin.z,
-                                        0.0f, 1.0f, 0.0f,
-
-                                        (sample.origin + sample.direction * nearest.t).x,
-                                        (sample.origin + sample.direction * nearest.t).y,
-                                        (sample.origin + sample.direction * nearest.t).z,
-                                        0.0f, 1.0f, 0.0f,
-                                };
-
-                                init_buffers(&rVAO, &rVBO, ray_verts);
-
-                                glBindVertexArray(rVAO);
-                                glDrawArrays(GL_LINES, 0, 2);
-                                glBindVertexArray(0);
-
-                                ray_verts = {
-                                        nearest.p->vertices[0].x,
-                                        nearest.p->vertices[0].y,
-                                        nearest.p->vertices[0].z,
-
-                                        0.0f, 1.0f, 0.0f,
-
-                                        nearest.p->vertices[1].x,
-                                        nearest.p->vertices[1].y,
-                                        nearest.p->vertices[1].z,
-
-                                        0.0f, 1.0f, 0.0f,
-
-                                        nearest.p->vertices[2].x,
-                                        nearest.p->vertices[2].y,
-                                        nearest.p->vertices[2].z,
-
-                                        0.0f, 1.0f, 0.0f,
-                                };
-
-                                hitted.insert(hitted.end(), ray_verts.begin(), ray_verts.end());
-                                init_buffers(&rVAO, &rVBO, hitted);
-
-                                glBindVertexArray(rVAO);
-                                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-                                glDrawArrays(GL_TRIANGLES, 0, hitted.size() / 3);
-                                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-                                glBindVertexArray(0);
-                            }
-                        } else {
-
-//                        std::cout << "-" << std::endl;
-
-                            std::vector<float> ray_verts = {
-                                    sample.origin.x,
-                                    sample.origin.y,
-                                    sample.origin.z,
-                                    1.0f, 0.0f, 0.0f,
-
-                                    (sample.origin + sample.direction * 5000.0f).x,
-                                    (sample.origin + sample.direction * 5000.0f).y,
-                                    (sample.origin + sample.direction * 5000.0f).z,
-                                    1.0f, 0.0f, 0.0f,
-                            };
-
-                            init_buffers(&rVAO, &rVBO, ray_verts);
-                            glBindVertexArray(rVAO);
-                            glDrawArrays(GL_LINES, 0, 2);
-                            glBindVertexArray(0);
-                        }
-
-                        //usleep(100000);
-                        glfwSwapBuffers(window);
-#endif
-                    }
 
                     if (nearest.hit && nearest.p != p) {
                         b_sum += nearest.p->p_total[wave_len];
@@ -465,8 +302,6 @@ std::size_t v_size,
             p->p_total[wave_len] *= p->area;
         }
 
-        std::cout << "\nDone." << std::endl;
+        std::cout << "Done." << std::endl;
     }
 }
-
-#endif
