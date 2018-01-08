@@ -30,6 +30,7 @@ struct bvh_node {
     axis split;
     std::size_t prim_base;
     std::size_t prim_num;
+    bvh_node *parent = nullptr;
 };
 
 struct prim_info {
@@ -48,6 +49,8 @@ bvh_node *bvh(std::vector<patch *> &primitives);
 
 hit intersect(const ray &r, const bvh_node *node,
               const std::vector<patch *> &primitives, float ERR);
+
+std::vector<patch *> neighbors(const std::vector<patch *> &primitives, const patch &p, bvh_node *tree);
 
 std::vector<float> bvh_debug_vertices(const bvh_node *node, int depth);
 

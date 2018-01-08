@@ -29,4 +29,6 @@ void reinhard(std::vector<patch *> &primitives);
 void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world,
                 float ERR);
 
+void interpolate(std::vector<patch *> &primitives, bvh_node *world);
+
 #endif //RADIOSITY_RADIOSITY_H

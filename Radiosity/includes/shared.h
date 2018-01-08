@@ -26,6 +26,8 @@ struct patch {
     glm::vec3 p_total;
     glm::vec3 p_unshot;
     glm::vec3 p_recieved;
+    glm::vec3 colors[4];
+    void *parent;
 };
 
 struct hit {

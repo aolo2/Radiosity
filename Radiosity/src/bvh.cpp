@@ -2,6 +2,43 @@
 
 #include <algorithm>
 
+std::vector<patch *> patches(const std::vector<patch *> &primitives, bvh_node *node) {
+    std::vector<patch *> res;
+
+    if (node->prim_num > 0) {
+        for (int i = 0; i < node->prim_num; i++) {
+            res.push_back(primitives[node->prim_base + i]);
+        }
+    }
+
+    if (node->split != axis::none) {
+        if (node->children[0] != nullptr) {
+            auto c0_res = patches(primitives, node->children[0]);
+            res.insert(res.end(), c0_res.begin(), c0_res.end());
+        }
+
+        if (node->children[1] != nullptr) {
+            auto c1_res = patches(primitives, node->children[1]);
+            res.insert(res.end(), c1_res.begin(), c1_res.end());
+        }
+    }
+
+    return res;
+}
+
+std::vector<patch *> neighbors(const std::vector<patch *> &primitives, const patch &p, bvh_node *tree) {
+    std::vector<patch *> res;
+
+    auto *node = (bvh_node *) p.parent;
+    const int TRACEBACK_LEN = 5;
+
+    for (int i = 0; i < TRACEBACK_LEN && node != nullptr; i++) {
+        node = node->parent;
+    }
+
+    return patches(primitives, node);
+}
+
 aabb compute_box(const std::vector<patch> &patches) {
     aabb box = {};
 
@@ -81,6 +118,9 @@ void init_interior(bvh_node *node, axis split, bvh_node *c0, bvh_node *c1) {
     node->children[1] = c1;
     node->prim_num = 0;
     node->box = join(c0->box, c1->box);
+
+    /* For bottom-to-top traverse */
+    c0->parent = c1->parent = node;
 }
 
 axis max_extent(const aabb &box) {
@@ -96,7 +136,7 @@ axis max_extent(const aabb &box) {
 
 bvh_node *rec_build(std::vector<prim_info> &primitive_info, std::size_t start,
                     std::size_t end, std::vector<patch *> &ordered_primititves,
-                    const std::vector<patch *> &primitives) {
+                    std::vector<patch *> &primitives) {
 
     bvh_node *node = (bvh_node *) malloc(sizeof(bvh_node));
 
@@ -113,6 +153,12 @@ bvh_node *rec_build(std::vector<prim_info> &primitive_info, std::size_t start,
             ordered_primititves.push_back(primitives[prim_num]);
         }
         init_leaf(node, first_offset, prim_count, bounds);
+
+        /* So that we can get node from patch directly */
+        for (int i = 0; i < prim_count; i++) {
+            primitives[first_offset + i]->parent = (void *) node;
+        }
+
         return node;
     } else {
         aabb centroid_box = {};
@@ -134,6 +180,12 @@ bvh_node *rec_build(std::vector<prim_info> &primitive_info, std::size_t start,
                 ordered_primititves.push_back(primitives[prim_num]);
             }
             init_leaf(node, first_offset, prim_count, bounds);
+
+            /* So that we can get node from patch directly */
+            for (int i = 0; i < prim_count; i++) {
+                primitives[first_offset + i]->parent = (void *) node;
+            }
+
             return node;
         } else {
             // for now
@@ -173,13 +225,10 @@ bvh_node *bvh(std::vector<patch *> &primitives) {
     return root;
 }
 
-hit
-intersect(const ray &r, const bvh_node *node,
-          const std::vector<patch *> &primitives, float ERR) {
-    float t = INF;
+hit intersect(const ray &r, const bvh_node *node,
+              const std::vector<patch *> &primitives, float ERR) {
 
     if (!intersect(r, node->box, ERR)) {
-
         hit res = {};
         res.hit = false;
         return res;
@@ -190,7 +239,6 @@ intersect(const ray &r, const bvh_node *node,
     ret.t = INF;
 
     if (node->split == axis::none) {
-
         for (int i = 0; i < node->prim_num; i++) {
             float t_now = intersect(r, *primitives[node->prim_base + i], ERR);
             if (t_now > ERR) {
@@ -224,95 +272,3 @@ intersect(const ray &r, const bvh_node *node,
 
     return ret;
 }
-
-#ifdef DEBUG
-
-std::vector<float> box_vertices(const aabb &box, int depth) {
-    glm::vec3 color(1.0f, 0.0f, 0.0f);
-
-    if (depth % 3 == 2) {
-        color = glm::vec3(0.0f, 1.0f, 0.0f);
-    } else if (depth % 3 == 0) {
-        color = glm::vec3(1.0f, 0.0f, 1.0f);
-    }
-
-    return {
-            // face 1
-            box.near[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.near[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            // end face 1
-
-            // face 2
-            box.near[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            // end face 2
-
-            // face 3
-            box.near[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            // end face 3
-
-            // face 4
-            box.far[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            // end face 4
-
-            // face 5
-            box.near[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.near[1], box.near[2], color.r, color.g, color.b,
-            // end face 5
-
-            // face 6
-            box.near[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.far[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            box.near[0], box.far[1], box.near[2], color.r, color.g, color.b,
-            box.near[0], box.far[1], box.far[2], color.r, color.g, color.b,
-            // end face 6
-    };
-}
-
-std::vector<float> bvh_debug_vertices(const bvh_node *node, const int depth) {
-    std::vector<float> res;
-
-    if (depth == MAX_DEPTH) {
-        return res;
-    }
-
-    auto box_v = box_vertices(node->box, depth);
-    res.insert(res.end(), box_v.begin(), box_v.end());
-
-    if (node->children[0] != nullptr) {
-        auto c0_v = bvh_debug_vertices(node->children[0], depth + 1);
-        res.insert(res.end(), c0_v.begin(), c0_v.end());
-    }
-
-    if (node->children[1] != nullptr) {
-        auto c1_v = bvh_debug_vertices(node->children[1], depth + 1);
-        res.insert(res.end(), c1_v.begin(), c1_v.end());
-    }
-
-    return res;
-}
-#endif

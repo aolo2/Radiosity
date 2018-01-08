@@ -119,25 +119,25 @@ std::vector<float> glify(const std::vector<patch *> &primitives, bool fill) {
         vertices.push_back(p->vertices[0].y);
         vertices.push_back(p->vertices[0].z);
 
-        vertices.push_back(fill ? 0.6f : p->p_total.r);
-        vertices.push_back(fill ? 0.6f : p->p_total.g);
-        vertices.push_back(fill ? 0.6f : p->p_total.b);
+        vertices.push_back(fill ? 0.6f : p->colors[0].r);
+        vertices.push_back(fill ? 0.6f : p->colors[0].g);
+        vertices.push_back(fill ? 0.6f : p->colors[0].b);
 
         vertices.push_back(p->vertices[1].x);
         vertices.push_back(p->vertices[1].y);
         vertices.push_back(p->vertices[1].z);
 
-        vertices.push_back(fill ? 0.6f : p->p_total.r);
-        vertices.push_back(fill ? 0.6f : p->p_total.g);
-        vertices.push_back(fill ? 0.6f : p->p_total.b);
+        vertices.push_back(fill ? 0.6f : p->colors[1].r);
+        vertices.push_back(fill ? 0.6f : p->colors[1].g);
+        vertices.push_back(fill ? 0.6f : p->colors[1].b);
 
         vertices.push_back(p->vertices[2].x);
         vertices.push_back(p->vertices[2].y);
         vertices.push_back(p->vertices[2].z);
 
-        vertices.push_back(fill ? 0.6f : p->p_total.r);
-        vertices.push_back(fill ? 0.6f : p->p_total.g);
-        vertices.push_back(fill ? 0.6f : p->p_total.b);
+        vertices.push_back(fill ? 0.6f : p->colors[2].r);
+        vertices.push_back(fill ? 0.6f : p->colors[2].g);
+        vertices.push_back(fill ? 0.6f : p->colors[2].b);
     }
 
     return vertices;

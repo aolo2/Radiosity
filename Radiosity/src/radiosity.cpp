@@ -187,8 +187,47 @@ glm::vec3 sample_hemi(const glm::vec3 &normal) {
     return glm::normalize(tan * x + normal * y + bitan * z);
 }
 
-float inline sum(const glm::vec3 &vec) {
-    return vec.x + vec.y + vec.z;
+/* Transform per-patch constant radiosity to per-vertex values */
+void interpolate(std::vector<patch *> &primitives, bvh_node *world) {
+    for (auto &prim : primitives) {
+
+        /* Find nearest patches to the given patch */
+        auto near = neighbors(primitives, *prim, world);
+
+        /* Find all 'copies' of the same vertex with O(N^8) lookup */
+        for (auto &local : near) {
+            for (int i = 0; i < 3; i++) {
+                glm::vec3 vertex = local->vertices[i];
+                std::vector<std::pair<patch *, int>> copies; // Patch ref and the vertex number
+                std::vector<patch *> contributors;
+
+                /* Find all the polygons with this vertex */
+                for (auto &patch : near) {
+                    for (int j = 0; j < 3; j++) {
+                        if (vertex == patch->vertices[j]) {
+                            copies.emplace_back(patch, j);
+//                            if (patch->area > 0.0f) {
+                                contributors.push_back(patch);
+//                                patch->area = -100.0f; // Hack for checking if the patch has already been added
+//                            }
+                        }
+                    }
+                }
+
+                /* Average the value and write to all 'copies' of the vertex */
+                glm::vec3 avg_color;
+                for (auto &c : contributors) {
+                    avg_color += c->p_total;
+                }
+
+                avg_color /= contributors.size();
+
+                for (auto &p : copies) {
+                    p.first->colors[p.second] = avg_color;
+                }
+            }
+        }
+    }
 }
 
 /* Local-line stohastic incremental Jacobibi Radiosity (sec. 6.3 Advanced GI) */
@@ -242,6 +281,7 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
                     hit nearest = intersect(sample, world, primitives, ERR);
 
                     if (nearest.hit && nearest.p != p) {
+
                         nearest.p->p_recieved[wave_len] +=
                                 (1.0f / N_samples) * total_unshot * nearest.p->color[wave_len];
                     }
