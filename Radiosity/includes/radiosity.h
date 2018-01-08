@@ -20,15 +20,12 @@ float form_factor(const patch *here, const patch *there,
                   const bvh_node *world, const std::vector<patch *> &primitives,
                   float ERR, int FF_SAMPLES);
 
-void iteration(const bvh_node *world, const std::vector<patch *> &primitives,
-               float ERR, int FF_SAMPLES);
-
 void reinhard(std::vector<patch *> &primitives);
 
 
 void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world,
                 float ERR);
 
-void interpolate(std::vector<patch *> &primitives, bvh_node *world);
+void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, int S_RAYS, float ERR);
 
 #endif //RADIOSITY_RADIOSITY_H

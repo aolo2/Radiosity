@@ -18,12 +18,6 @@ struct aabb {
     // todo need to only store length of diagonal
 };
 
-struct object {
-    std::vector<patch> patches;
-    std::string name;
-    aabb box;
-};
-
 struct bvh_node {
     aabb box;
     bvh_node *children[2];
@@ -49,8 +43,6 @@ bvh_node *bvh(std::vector<patch *> &primitives);
 
 hit intersect(const ray &r, const bvh_node *node,
               const std::vector<patch *> &primitives, float ERR);
-
-std::vector<patch *> neighbors(const std::vector<patch *> &primitives, const patch &p, bvh_node *tree);
 
 std::vector<float> bvh_debug_vertices(const bvh_node *node, int depth);
 

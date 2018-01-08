@@ -26,19 +26,6 @@ std::vector<patch *> patches(const std::vector<patch *> &primitives, bvh_node *n
     return res;
 }
 
-std::vector<patch *> neighbors(const std::vector<patch *> &primitives, const patch &p, bvh_node *tree) {
-    std::vector<patch *> res;
-
-    auto *node = (bvh_node *) p.parent;
-    const int TRACEBACK_LEN = 5;
-
-    for (int i = 0; i < TRACEBACK_LEN && node != nullptr; i++) {
-        node = node->parent;
-    }
-
-    return patches(primitives, node);
-}
-
 aabb compute_box(const std::vector<patch> &patches) {
     aabb box = {};
 

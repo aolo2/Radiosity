@@ -72,7 +72,9 @@ bool visible(const glm::vec3 &a, const glm::vec3 &b, const patch *p_b,
     r.direction = glm::normalize(b - a);
 
     float t_other_b = intersect(r, *p_b, ERR);
-    return false;
+    hit t_world = intersect(r, world, primitives, ERR);
+
+    return !(t_world.hit && t_world.t > ERR && t_world.t < t_other_b);
 }
 
 float p2p_form_factor(const glm::vec3 &a, const glm::vec3 &n_a,
@@ -188,49 +190,63 @@ glm::vec3 sample_hemi(const glm::vec3 &normal) {
 }
 
 /* Transform per-patch constant radiosity to per-vertex values */
-void interpolate(std::vector<patch *> &primitives, bvh_node *world) {
-    for (auto &prim : primitives) {
+void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, int S_RAYS, float ERR) {
 
-        /* Find nearest patches to the given patch */
-        auto near = neighbors(primitives, *prim, world);
+    /* For each disc. wavelength */
+    for (int wave_len = 0; wave_len < 3; wave_len++) {
+        std::cout << "." << std::flush;
+        for (auto p : primitives) {
 
-        /* Find all 'copies' of the same vertex with O(N^8) lookup */
-        for (auto &local : near) {
-            for (int i = 0; i < 3; i++) {
-                glm::vec3 vertex = local->vertices[i];
-                std::vector<std::pair<patch *, int>> copies; // Patch ref and the vertex number
-                std::vector<patch *> contributors;
+            if (p->emit[wave_len] > ERR) {
+                p->colors[0][wave_len] = p->colors[1][wave_len] = p->colors[2][wave_len] = p->p_total[wave_len];
+                continue;
+            }
 
-                /* Find all the polygons with this vertex */
-                for (auto &patch : near) {
-                    for (int j = 0; j < 3; j++) {
-                        if (vertex == patch->vertices[j]) {
-                            copies.emplace_back(patch, j);
-//                            if (patch->area > 0.0f) {
-                                contributors.push_back(patch);
-//                                patch->area = -100.0f; // Hack for checking if the patch has already been added
-//                            }
-                        }
+            /* For each vertex in the scene*/
+            for (int v = 0; v < 3; v++) {
+
+                float B = 0.0f;
+                glm::vec3 x = p->vertices[v];
+
+                /* Indirect illumination */
+                for (int i = 0; i < G_RAYS / 3; i++) {
+                    ray sample = {x, sample_hemi(p->normal)};
+                    hit nearest = intersect(sample, world, primitives, ERR);
+
+                    if (nearest.hit && nearest.p != p && nearest.p->emit[wave_len] < ERR) {
+                        B += nearest.p->p_total[wave_len];
                     }
+
+                    p->colors[v][wave_len] = p->color[wave_len] * B / G_RAYS * 3;
                 }
 
-                /* Average the value and write to all 'copies' of the vertex */
-                glm::vec3 avg_color;
-                for (auto &c : contributors) {
-                    avg_color += c->p_total;
-                }
-
-                avg_color /= contributors.size();
-
-                for (auto &p : copies) {
-                    p.first->colors[p.second] = avg_color;
-                }
+//                /* Separate light sources */
+//                std::vector<patch *> emitters;
+//                for (auto prim : primitives) {
+//                    if (prim->emit[wave_len] > ERR) {
+//                        emitters.push_back(prim);
+//                    }
+//                }
+//
+//                /* Direct illumination */
+//                if (emitters.empty()) {
+//                    continue;
+//                }
+//
+//                for (int i = 0; i < S_RAYS / 3; i++) {
+//                    patch *emitter = emitters[(int) std::round((unilateral(mt) * (emitters.size() - 1)))];
+//                    glm::vec3 Ep = sample_point(emitter);
+//
+//                    if (visible(x, Ep, emitter, world, primitives, ERR)) {
+//                        p->colors[v][wave_len] += emitter->p_total[wave_len] / S_RAYS;
+//                    }
+//                }
             }
         }
     }
 }
 
-/* Local-line stohastic incremental Jacobibi Radiosity (sec. 6.3 Advanced GI) */
+/* Local-line stohastic incremental Jacobi Radiosity (sec. 6.3 Advanced GI) */
 void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR) {
 
     float total_area = 0.0f;
@@ -262,7 +278,6 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
 
         /* Incremental shooting */
         while (total_unshot > 1e-7) {
-//        while (0 > 1) {
             auto N_samples = (long) (N * total_unshot / total_power);
             float xi = unilateral(mt);
 
@@ -277,11 +292,11 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
 
                 for (long i = 0; i < N_i; ++i) {
                     glm::vec3 x = sample_point(p);
-                    ray sample = {x, sample_hemi(p->normal)}; // TODO: precompute tangent and bi-tangent for each patch?
+                    ray sample = {x, sample_hemi(
+                            p->normal)}; // TODO: precompute tangent and bi-tangent for each patch?
                     hit nearest = intersect(sample, world, primitives, ERR);
 
                     if (nearest.hit && nearest.p != p) {
-
                         nearest.p->p_recieved[wave_len] +=
                                 (1.0f / N_samples) * total_unshot * nearest.p->color[wave_len];
                     }
@@ -302,46 +317,6 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
             }
         }
 
-        /* Go from power to radiance */
-        for (auto p : primitives) {
-            p->p_total[wave_len] /= p->area;
-            p->p_total_new[wave_len] = 0.0f;
-        }
-
-        std::cout << std::endl;
-
-        int GATHER_ITERATIONS = 0;
-
-        /* Regular gathering */
-        for (int i = 0; i < GATHER_ITERATIONS; ++i) {
-            float n = 1;
-            for (auto p : primitives) {
-                long N_i = 1000;
-                float b_sum = 0.0f;
-
-                for (long j = 0; j < N_i; ++j) {
-                    glm::vec3 x = sample_point(p);
-                    ray sample = {x, sample_hemi(p->normal)};
-                    hit nearest = intersect(sample, world, primitives, ERR);
-
-                    if (nearest.hit && nearest.p != p) {
-                        b_sum += nearest.p->p_total[wave_len];
-                    }
-                }
-
-                p->p_total_new[wave_len] += p->emit[wave_len] + p->color[wave_len] * b_sum / N_i;
-
-                std::cout << "Gathering " << i + 1 << "/" << GATHER_ITERATIONS << ": "
-                          << (int) (n++ / primitives.size() * 100.0f) << "%\r" << std::flush;
-            }
-        }
-
-        /* Go back to power */
-        for (auto p : primitives) {
-            if (GATHER_ITERATIONS > 0) { p->p_total[wave_len] = p->p_total_new[wave_len] / GATHER_ITERATIONS; }
-            p->p_total[wave_len] *= p->area;
-        }
-
-        std::cout << "Done." << std::endl;
+        std::cout << "\nDone." << std::endl;
     }
 }

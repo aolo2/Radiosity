@@ -22,7 +22,9 @@ settings load_settings(const std::string &path) {
          >> s.camera_pos.y
          >> s.camera_pos.z
          >> s.mesh_path
-         >> s.TOTAL_RAYS;
+         >> s.TOTAL_RAYS
+         >> s.GATHER_RAYS
+         >> s.SHADOW_RAYS;
 
     s.ASPECT_RATIO =
             static_cast<float>(s.WINDOW_WIDTH) /

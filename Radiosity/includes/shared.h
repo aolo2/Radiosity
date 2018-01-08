@@ -22,7 +22,6 @@ struct patch {
     glm::vec3 rad_new;
     glm::vec3 emit;
     float area;
-    glm::vec3 p_total_new;
     glm::vec3 p_total;
     glm::vec3 p_unshot;
     glm::vec3 p_recieved;
@@ -50,6 +49,8 @@ struct settings {
     int RAD_ITERATIONS;
     int FF_SAMPLES;
     long TOTAL_RAYS;
+    int GATHER_RAYS;
+    int SHADOW_RAYS;
     glm::vec3 camera_pos;
     std::string mesh_path;
 };
