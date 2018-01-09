@@ -205,10 +205,47 @@ void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, 
             /* For each vertex in the scene*/
             for (int v = 0; v < 3; v++) {
 
-                float B = 0.0f;
                 glm::vec3 x = p->vertices[v];
 
+                /* Separate light sources */
+                float P_total = 0.0f;
+                std::vector<patch *> emitters;
+                for (auto prim : primitives) {
+                    if (prim->emit[wave_len] > ERR) {
+                        emitters.push_back(prim);
+                        P_total += prim->p_total[wave_len];
+                    }
+                }
+
+                /* Direct illumination */
+                if (emitters.empty()) {
+                    continue;
+                }
+
+                for (int i = 0; i < S_RAYS / 3; i++) {
+
+                    patch *emitter = emitters[(int) std::round((unilateral(mt) * (emitters.size() - 1)))];
+                    glm::vec3 Ep = sample_point(emitter);
+
+                    if (visible(x, Ep, emitter, world, primitives, ERR)) {
+
+                        glm::vec3 xy = Ep - p->vertices[v];
+                        glm::vec3 xy_norm = glm::normalize(xy);
+
+                        float r = glm::length(xy);
+                        float G = glm::dot(xy_norm, p->normal) * glm::dot(-xy_norm, emitter->normal) / (r * r);
+
+                        p->colors[v][wave_len] += emitter->p_total[wave_len] * G;
+                    }
+                }
+
+                // (N_L / N) * SUM_i^N   P_i * (color / PI) * G * V
+                p->colors[v][wave_len] *= (p->color[wave_len] / PI * emitters.size() / (S_RAYS / 3)) * 800.0f;
+
+
                 /* Indirect illumination */
+                float B = 0.0f;
+
                 for (int i = 0; i < G_RAYS / 3; i++) {
                     ray sample = {x, sample_hemi(p->normal)};
                     hit nearest = intersect(sample, world, primitives, ERR);
@@ -216,31 +253,9 @@ void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, 
                     if (nearest.hit && nearest.p != p && nearest.p->emit[wave_len] < ERR) {
                         B += nearest.p->p_total[wave_len];
                     }
-
-                    p->colors[v][wave_len] = p->color[wave_len] * B / G_RAYS * 3;
                 }
 
-//                /* Separate light sources */
-//                std::vector<patch *> emitters;
-//                for (auto prim : primitives) {
-//                    if (prim->emit[wave_len] > ERR) {
-//                        emitters.push_back(prim);
-//                    }
-//                }
-//
-//                /* Direct illumination */
-//                if (emitters.empty()) {
-//                    continue;
-//                }
-//
-//                for (int i = 0; i < S_RAYS / 3; i++) {
-//                    patch *emitter = emitters[(int) std::round((unilateral(mt) * (emitters.size() - 1)))];
-//                    glm::vec3 Ep = sample_point(emitter);
-//
-//                    if (visible(x, Ep, emitter, world, primitives, ERR)) {
-//                        p->colors[v][wave_len] += emitter->p_total[wave_len] / S_RAYS;
-//                    }
-//                }
+                p->colors[v][wave_len] += p->color[wave_len] * B / G_RAYS * 3;
             }
         }
     }

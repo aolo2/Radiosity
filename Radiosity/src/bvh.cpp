@@ -141,11 +141,6 @@ bvh_node *rec_build(std::vector<prim_info> &primitive_info, std::size_t start,
         }
         init_leaf(node, first_offset, prim_count, bounds);
 
-        /* So that we can get node from patch directly */
-        for (int i = 0; i < prim_count; i++) {
-            primitives[first_offset + i]->parent = (void *) node;
-        }
-
         return node;
     } else {
         aabb centroid_box = {};
@@ -167,11 +162,6 @@ bvh_node *rec_build(std::vector<prim_info> &primitive_info, std::size_t start,
                 ordered_primititves.push_back(primitives[prim_num]);
             }
             init_leaf(node, first_offset, prim_count, bounds);
-
-            /* So that we can get node from patch directly */
-            for (int i = 0; i < prim_count; i++) {
-                primitives[first_offset + i]->parent = (void *) node;
-            }
 
             return node;
         } else {
