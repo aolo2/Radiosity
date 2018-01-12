@@ -9,6 +9,7 @@ std::mt19937 mt(rd());
 std::uniform_real_distribution<float> unilateral(0.0f, 1.0);
 
 const float PI = 3.1415926f;
+const std::string WAVES[] = {"R", "G", "B"};
 
 float area(const patch &p) {
     glm::vec3 a = p.vertices[0];
@@ -20,7 +21,12 @@ float area(const patch &p) {
 
     float ab_len = glm::length(ab);
     float ac_len = glm::length(ac);
+
+    float denom = ab_len * ac_len;
+    if (denom < 1e-4) { return 0.0f; }
+
     float cos = glm::dot(ab, ac) / (ab_len * ac_len);
+    if (glm::abs(cos - 1.0f) < 1e-4) { return 0.0f; }
 
     return 0.5f * ab_len * ac_len * glm::sqrt(1 - cos * cos);
 }
@@ -189,13 +195,19 @@ glm::vec3 sample_hemi(const glm::vec3 &normal) {
     return glm::normalize(tan * x + normal * y + bitan * z);
 }
 
+inline float sum(const glm::vec3 &v) {
+    return v.x + v.y + v.z;
+}
+
 /* Transform per-patch constant radiosity to per-vertex values */
 void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, int S_RAYS, float ERR) {
 
     /* For each disc. wavelength */
     for (int wave_len = 0; wave_len < 3; wave_len++) {
-        std::cout << "." << std::flush;
+        float nn = 1;
+
         for (auto p : primitives) {
+
 
             if (p->emit[wave_len] > ERR) {
                 p->colors[0][wave_len] = p->colors[1][wave_len] = p->colors[2][wave_len] = p->p_total[wave_len];
@@ -222,6 +234,8 @@ void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, 
                     continue;
                 }
 
+                p->colors[v][wave_len] = 0.0f;
+
                 for (int i = 0; i < S_RAYS / 3; i++) {
 
                     patch *emitter = emitters[(int) std::round((unilateral(mt) * (emitters.size() - 1)))];
@@ -233,14 +247,19 @@ void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, 
                         glm::vec3 xy_norm = glm::normalize(xy);
 
                         float r = glm::length(xy);
-                        float G = glm::dot(xy_norm, p->normal) * glm::dot(-xy_norm, emitter->normal) / (r * r);
+                        float G = 0.0f;
+
+                        if (r > ERR) {
+                            G = glm::dot(xy_norm, p->normal) * glm::dot(-xy_norm, emitter->normal) / (r * r);
+                        }
 
                         p->colors[v][wave_len] += emitter->p_total[wave_len] * G;
                     }
                 }
 
+
                 // (N_L / N) * SUM_i^N   P_i * (color / PI) * G * V
-                p->colors[v][wave_len] *= (p->color[wave_len] / PI * emitters.size() / (S_RAYS / 3)) * 800.0f;
+                p->colors[v][wave_len] *= (p->color[wave_len] / PI * emitters.size() / (S_RAYS / 3)) * 500.0f;
 
 
                 /* Indirect illumination */
@@ -255,22 +274,53 @@ void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, 
                     }
                 }
 
-                p->colors[v][wave_len] += p->color[wave_len] * B / G_RAYS * 3;
+                if (G_RAYS > 0) {
+                    p->colors[v][wave_len] += p->color[wave_len] * B / G_RAYS * 3;
+                }
             }
+
+
+            auto percent_done = (int) (100.0f * (nn++ / primitives.size()));
+
+            std::cout << "\rInterpolating[" << WAVES[wave_len] << "]... ";
+            if (percent_done >= 10) {
+                std::cout << percent_done;
+            } else {
+                std::cout << "0" << percent_done;
+            }
+
+            std::cout << "%" << std::flush;
         }
+
+        std::cout << std::endl;
     }
+
+    /*  std::cout << "Removing artefacts... " << std::flush;
+      for (auto p : primitives) {
+          glm::vec3 max_color(0.0f);
+
+          for (int v = 0; v < 3; v++) {
+              if (sum(p->colors[v]) > sum(max_color)) {
+                  max_color = p->colors[v];
+              }
+          }
+
+          for (int v = 0; v < 3; v++) {
+              if (sum(p->colors[v]) < 0.02f && p->percent_visible < 0.1f) {
+                  p->colors[v] = max_color;
+              }
+          }
+      }
+      std::cout << "DONE" << std::endl;*/
 }
 
 /* Local-line stohastic incremental Jacobi Radiosity (sec. 6.3 Advanced GI) */
-void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world, float ERR) {
-
-    float total_area = 0.0f;
+void local_line(std::vector<patch *> &primitives, const long long N, const bvh_node *world, float ERR) {
 
     for (auto p : primitives) {
         p->p_total = p->emit * p->area;
         p->p_unshot = p->emit * p->area;
         p->p_recieved = glm::vec3(0.0f);
-        total_area += p->area;
     }
 
     /* Run the simulation for each wavelength */
@@ -288,12 +338,12 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
         }
 
         /* Stratified sampling */
-        long N_prev;
+        long long N_prev;
         float q;
 
         /* Incremental shooting */
         while (total_unshot > 1e-7) {
-            auto N_samples = (long) (N * total_unshot / total_power);
+            auto N_samples = (long long) (N * total_unshot / total_power);
             float xi = unilateral(mt);
 
             std::cout << "Total unshot power: " << total_unshot << "\r" << std::flush;
@@ -302,7 +352,9 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
             q = 0;
 
             for (auto p : primitives) {
-                q += p->p_unshot[wave_len] / total_unshot;
+                if (N_prev == N_samples) { break; }
+                auto q_i = p->p_unshot[wave_len] / total_unshot;
+                q += q_i;
                 long N_i = (long) glm::floor(N_samples * q + xi) - N_prev;
 
                 for (long i = 0; i < N_i; ++i) {
@@ -333,5 +385,13 @@ void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *
         }
 
         std::cout << "\nDone." << std::endl;
+    }
+
+    for (auto p : primitives) {
+        for (int wave_len = 0; wave_len < 3; wave_len++) {
+            p->colors[0][wave_len] =
+            p->colors[1][wave_len] =
+            p->colors[2][wave_len] = p->p_total[wave_len] / p->area;
+        }
     }
 }

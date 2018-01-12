@@ -102,12 +102,19 @@ void radiate(std::vector<patch> &patches,
 
     /* Local line radiosity */
     std::cout << "Monte Carlo radiosity... " << std::endl;
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     local_line(primitives, s.TOTAL_RAYS, *tree, s.ERR);
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count())
+                 / s.TOTAL_RAYS << "ms / ray" << std::endl;
+
+    vertices = glify(primitives, false);
+    finished_radiosity = true;
 
     /* Interpolate */
-    std::cout << "Interpolating" << std::flush;
-    interpolate(primitives, *tree, s.GATHER_RAYS, s.SHADOW_RAYS, s.ERR);
-    std::cout << " DONE" << std::endl;
+    /* std::cout << "Interpolating... " << std::flush;
+     interpolate(primitives, *tree, s.GATHER_RAYS, s.SHADOW_RAYS, s.ERR);
+     std::cout << " DONE" << std::endl;*/
 
     /* Tone map */
     std::cout << "Tone mapping... " << std::flush;
@@ -149,7 +156,7 @@ int main() {
 //    glEnable(GL_CULL_FACE);
     glDepthFunc(GL_LESS);
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    glLineWidth(2.0f);
+    glLineWidth(1.5f);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -175,6 +182,7 @@ int main() {
 
     startup(patches, primitives, vertices, &tree, s, &VAO, &VBO);
 
+    /* Radiosity and tone-mapping thread */
     std::thread t1(radiate,
                    std::ref(patches),
                    std::ref(primitives),

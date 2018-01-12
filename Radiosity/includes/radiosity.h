@@ -23,7 +23,7 @@ float form_factor(const patch *here, const patch *there,
 void reinhard(std::vector<patch *> &primitives);
 
 
-void local_line(std::vector<patch *> &primitives, const long N, const bvh_node *world,
+void local_line(std::vector<patch *> &primitives, long long N, const bvh_node *world,
                 float ERR);
 
 void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, int S_RAYS, float ERR);
