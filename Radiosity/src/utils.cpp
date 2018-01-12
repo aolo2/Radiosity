@@ -89,7 +89,7 @@ std::vector<patch> load_mesh(const std::string &path) {
 
             if (current_material_id < 0) {
                 std::cerr << "Material not specified" << std::endl;
-                continue;
+                std::exit(1);
             }
 
             p.color = glm::vec3(

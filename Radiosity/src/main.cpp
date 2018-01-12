@@ -103,11 +103,13 @@ void radiate(std::vector<patch> &patches,
     /* Local line radiosity */
     std::cout << "Monte Carlo radiosity... " << std::endl;
     local_line(primitives, s.TOTAL_RAYS, *tree, s.ERR);
+    vertices = glify(primitives, false);
+    finished_radiosity = true;
 
     /* Interpolate */
-    std::cout << "Interpolating" << std::flush;
+   /* std::cout << "Interpolating... " << std::flush;
     interpolate(primitives, *tree, s.GATHER_RAYS, s.SHADOW_RAYS, s.ERR);
-    std::cout << " DONE" << std::endl;
+    std::cout << " DONE" << std::endl;*/
 
     /* Tone map */
     std::cout << "Tone mapping... " << std::flush;

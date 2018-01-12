@@ -26,6 +26,7 @@ struct patch {
     glm::vec3 p_unshot;
     glm::vec3 p_recieved;
     glm::vec3 colors[4];
+    float percent_visible;
 };
 
 struct hit {
@@ -47,7 +48,7 @@ struct settings {
     float ASPECT_RATIO;
     int RAD_ITERATIONS;
     int FF_SAMPLES;
-    long TOTAL_RAYS;
+    long long TOTAL_RAYS;
     int GATHER_RAYS;
     int SHADOW_RAYS;
     glm::vec3 camera_pos;
