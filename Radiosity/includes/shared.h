@@ -4,6 +4,7 @@
 #define GLEW_STATIC
 
 #include <GL/glew.h>
+#include <GLFW/glfw3.h>
 
 #include <glm/glm.hpp>
 #include <vector>
@@ -11,6 +12,7 @@
 
 #include <thread>
 #include <atomic>
+#include <set>
 
 const float INF = std::numeric_limits<float>::infinity();
 
@@ -52,6 +54,11 @@ struct settings {
     int SHADOW_RAYS;
     glm::vec3 camera_pos;
     std::string mesh_path;
+    bool display_only;
+    bool save_result;
+    bool show_stats;
+    bool debug;
+    bool invalid;
 };
 
 float intersect(const ray &r, const patch &p, float ERR);

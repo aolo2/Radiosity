@@ -7,10 +7,8 @@
 #include <dirent.h>
 #include <iostream>
 
-settings load_settings(const std::string &path) {
+void load_settings(const std::string &path, settings &s) {
     std::ifstream file(path.c_str());
-
-    settings s = {};
 
     file >> s.WINDOW_WIDTH
          >> s.WINDOW_HEIGHT
@@ -29,11 +27,9 @@ settings load_settings(const std::string &path) {
     s.ASPECT_RATIO =
             static_cast<float>(s.WINDOW_WIDTH) /
             static_cast<float>(s.WINDOW_HEIGHT);
-
-    return s;
 }
 
-std::vector<patch> load_mesh(const std::string &path) {
+std::vector<patch> load_mesh(const std::string &path, stats &stat) {
     std::vector<patch> patches;
     tinyobj::attrib_t attrib;
 
@@ -103,6 +99,12 @@ std::vector<patch> load_mesh(const std::string &path) {
                     materials[current_material_id].ambient[0],
                     materials[current_material_id].ambient[1],
                     materials[current_material_id].ambient[2]);
+
+            ++stat.polygons_count;
+
+            if (p.emit != glm::vec3(0.0f)) {
+                ++stat.light_sources_count;
+            }
 
             patches.push_back(p);
 
@@ -174,4 +176,35 @@ void init_buffers(GLuint *VAO, GLuint *VBO, std::vector<float> &vertices) {
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+}
+
+settings process_flags(int argc, char **argv) {
+    settings s = {};
+
+    for (int i = 1; i < argc; i++) {
+        std::string arg(argv[i]);
+        if (ALLOWED_FLAGS.find(arg) == ALLOWED_FLAGS.end()) {
+            std::cerr << "Unknown parameter: \'" << argv[i] << "\'" << std::endl;
+            s.invalid = true;
+            return s;
+        } else {
+            if (arg == "-l") {
+                s.display_only = true;
+            }
+
+            if (arg == "-s") {
+                s.save_result = true;
+            }
+
+            if (arg == "-v") {
+                s.show_stats = true;
+            }
+
+            if (arg == "-d") {
+                s.debug = true;
+            }
+        }
+    }
+
+    return s;
 }

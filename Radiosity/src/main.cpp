@@ -3,8 +3,7 @@
 #include "../includes/utils.h"
 #include "../includes/radiosity.h"
 #include "../includes/bvh.h"
-
-#include <GLFW/glfw3.h>
+#include "../includes/stats.h"
 
 camera *cam;
 bool keys[1024] = {};
@@ -72,63 +71,63 @@ void startup(std::vector<patch> &patches,
              std::vector<float> &vertices,
              bvh_node **tree,
              const settings &s,
+             stats &stat,
              GLuint *VAO,
              GLuint *VBO) {
 
-    std::cout << "Loading mesh... " << std::flush;
-    patches = load_mesh(s.mesh_path);
-    std::cout << "DONE" << std::endl;
+    stat.events[EVENT::MESH_BEGIN] = glfwGetTime();
+
+    if (s.debug) { std::cout << "Loading mesh... " << std::flush; }
+    patches = load_mesh(s.mesh_path, stat);
+    if (s.debug) { std::cout << "DONE" << std::endl; }
+
+    stat.events[EVENT::MESH_END] = glfwGetTime();
 
     for (auto &patch : patches) {
         primitives.push_back(&patch);
     }
 
-    std::cout << "Creating the BVH... " << std::flush;
-    *tree = bvh(primitives);
-    std::cout << "DONE" << std::endl;
+    stat.events[EVENT::BVH_BEGIN] = glfwGetTime();
 
-    std::cout << "Initializing OpenGL buffers... " << std::flush;
+    if (s.debug) { std::cout << "Creating the BVH... " << std::flush; }
+    *tree = bvh(primitives);
+    if (s.debug) { std::cout << "DONE" << std::endl; }
+
+    stat.events[EVENT::BVH_END] = glfwGetTime();
+
+    if (s.debug) { std::cout << "Initializing OpenGL buffers... " << std::flush; }
     vertices = glify(primitives, true);
     init_buffers(VAO, VBO, vertices);
-    std::cout << "DONE" << std::endl;
+    if (s.debug) { std::cout << "DONE" << std::endl; }
 }
 
 void radiate(std::vector<patch> &patches,
              std::vector<patch *> &primitives,
              std::vector<float> &vertices,
              bvh_node **tree,
-             const settings &s) {
-
+             const settings &s,
+             stats &stat) {
 
     /* Local line radiosity */
-    std::cout << "Monte Carlo radiosity... " << std::endl;
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    local_line(primitives, s.TOTAL_RAYS, *tree, s.ERR);
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count())
-                 / s.TOTAL_RAYS << "ms / ray" << std::endl;
+    local_line(primitives, s, *tree, stat);
 
-    vertices = glify(primitives, false);
-    finished_radiosity = true;
-
-    /* Interpolate */
-    /* std::cout << "Interpolating... " << std::flush;
-     interpolate(primitives, *tree, s.GATHER_RAYS, s.SHADOW_RAYS, s.ERR);
-     std::cout << " DONE" << std::endl;*/
+    stat.events[EVENT::TONEMAP_BEGIN] = glfwGetTime();
 
     /* Tone map */
-    std::cout << "Tone mapping... " << std::flush;
+    if (s.debug) { std::cout << "Tone mapping... " << std::flush; }
     reinhard(primitives);
-    std::cout << "DONE" << std::endl;
+    if (s.debug) { std::cout << "DONE" << std::endl; }
+
+    stat.events[EVENT::TONEMAP_END] = glfwGetTime();
 
     /* Transform to OpenGL per-vertex format */
-    std::cout << "Updating OpenGL buffers... " << std::flush;
+    if (s.debug) { std::cout << "Updating OpenGL buffers... " << std::flush; }
     vertices = glify(primitives, false);
     finished_radiosity = true;
-    std::cout << "DONE" << std::endl;
+    if (s.debug) { std::cout << "DONE" << std::endl; }
 }
 
-int main() {
+int main(int argc, char **argv) {
     /* Init glfw */
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -137,8 +136,21 @@ int main() {
     glfwWindowHint(GLFW_SAMPLES, 8);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
+    stats stat = {};
+    stat.events[EVENT::STARTUP] = glfwGetTime();
+
+
+    /* Process flags */
+    settings s = process_flags(argc, argv);
+    if (s.invalid) {
+        glfwTerminate();
+        delete cam;
+        return 1;
+    }
+
     /* Load constants */
-    settings s = load_settings("includes/constants");
+    load_settings("includes/constants", s);
+    stat.rays_number = s.TOTAL_RAYS;
 
     /* Create a window and set callbacks, etc. */
     GLFWwindow *window = glfwCreateWindow(s.WINDOW_WIDTH, s.WINDOW_HEIGHT, "", nullptr, nullptr);
@@ -180,14 +192,15 @@ int main() {
     std::vector<float> vertices;
     bvh_node *tree;
 
-    startup(patches, primitives, vertices, &tree, s, &VAO, &VBO);
+    startup(patches, primitives, vertices, &tree, s, stat, &VAO, &VBO);
 
     /* Radiosity and tone-mapping thread */
     std::thread t1(radiate,
                    std::ref(patches),
                    std::ref(primitives),
                    std::ref(vertices),
-                   &tree, s);
+                   &tree, s,
+                   std::ref(stat));
 
     /* Main draw loop */
     while (glfwWindowShouldClose(window) == 0) {
@@ -200,6 +213,7 @@ int main() {
             update_buffers(&VAO, &VBO, vertices);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             finished_radiosity = false;
+            if (s.show_stats) { output_stats(stat); }
         }
 
         glBindVertexArray(VAO);

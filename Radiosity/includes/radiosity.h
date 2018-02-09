@@ -3,6 +3,7 @@
 
 #include "shared.h"
 #include "bvh.h"
+#include "stats.h"
 
 #include <random>
 
@@ -22,9 +23,7 @@ float form_factor(const patch *here, const patch *there,
 
 void reinhard(std::vector<patch *> &primitives);
 
-
-void local_line(std::vector<patch *> &primitives, long long N, const bvh_node *world,
-                float ERR);
+void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_node *world, stats &stat);
 
 void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, int S_RAYS, float ERR);
 

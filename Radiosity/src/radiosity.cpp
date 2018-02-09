@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
+
 #include "../includes/radiosity.h"
 #include "../includes/utils.h"
 
@@ -9,7 +10,7 @@ std::mt19937 mt(rd());
 std::uniform_real_distribution<float> unilateral(0.0f, 1.0);
 
 const float PI = 3.1415926f;
-const std::string WAVES[] = {"R", "G", "B"};
+const std::string WAVES[] = {"RED", "GREEN", "BLUE"};
 
 float area(const patch &p) {
     glm::vec3 a = p.vertices[0];
@@ -315,13 +316,18 @@ void interpolate(std::vector<patch *> &primitives, bvh_node *world, int G_RAYS, 
 }
 
 /* Local-line stohastic incremental Jacobi Radiosity (sec. 6.3 Advanced GI) */
-void local_line(std::vector<patch *> &primitives, const long long N, const bvh_node *world, float ERR) {
+void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_node *world, stats &stat) {
+
+    double sijia_start = glfwGetTime();
+    stat.events[EVENT::SIJIA_BEGIN] = glfwGetTime();
 
     for (auto p : primitives) {
         p->p_total = p->emit * p->area;
         p->p_unshot = p->emit * p->area;
         p->p_recieved = glm::vec3(0.0f);
     }
+
+    int iteration_count = 0;
 
     /* Run the simulation for each wavelength */
     for (int wave_len = 0; wave_len < 3; ++wave_len) {
@@ -343,10 +349,10 @@ void local_line(std::vector<patch *> &primitives, const long long N, const bvh_n
 
         /* Incremental shooting */
         while (total_unshot > 1e-7) {
-            auto N_samples = (long long) (N * total_unshot / total_power);
+            auto N_samples = (long long) (s.TOTAL_RAYS * total_unshot / total_power);
             float xi = unilateral(mt);
 
-            std::cout << "Total unshot power: " << total_unshot << "\r" << std::flush;
+            if (s.debug) { std::cout << "Unshot " << WAVES[wave_len] << ": " << total_unshot << "\r" << std::flush; }
 
             N_prev = 0;
             q = 0;
@@ -361,7 +367,7 @@ void local_line(std::vector<patch *> &primitives, const long long N, const bvh_n
                     glm::vec3 x = sample_point(p);
                     ray sample = {x, sample_hemi(
                             p->normal)}; // TODO: precompute tangent and bi-tangent for each patch?
-                    hit nearest = intersect(sample, world, primitives, ERR);
+                    hit nearest = intersect(sample, world, primitives, s.ERR);
 
                     if (nearest.hit && nearest.p != p) {
                         nearest.p->p_recieved[wave_len] +=
@@ -382,9 +388,11 @@ void local_line(std::vector<patch *> &primitives, const long long N, const bvh_n
                 total_unshot += p->p_unshot[wave_len];
                 total_power += p->p_total[wave_len];
             }
+
+            ++iteration_count;
         }
 
-        std::cout << "\nDone." << std::endl;
+        if (s.debug) { std::cout << std::endl; }
     }
 
     for (auto p : primitives) {
@@ -394,4 +402,9 @@ void local_line(std::vector<patch *> &primitives, const long long N, const bvh_n
             p->colors[2][wave_len] = p->p_total[wave_len] / p->area;
         }
     }
+
+    double sijia_end = glfwGetTime();
+
+    stat.events[EVENT::SIJIA_END] = glfwGetTime();
+    stat.iterations_number = iteration_count;
 }
