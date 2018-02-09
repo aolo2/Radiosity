@@ -115,7 +115,7 @@ void radiate(std::vector<patch> &patches,
 
     /* Tone map */
     if (s.debug) { std::cout << "Tone mapping... " << std::flush; }
-    reinhard(primitives);
+//    reinhard(primitives);
     if (s.debug) { std::cout << "DONE" << std::endl; }
 
     stat.events[EVENT::TONEMAP_END] = glfwGetTime();
@@ -138,7 +138,6 @@ int main(int argc, char **argv) {
 
     stats stat = {};
     stat.events[EVENT::STARTUP] = glfwGetTime();
-
 
     /* Process flags */
     settings s = process_flags(argc, argv);
@@ -187,20 +186,32 @@ int main(int argc, char **argv) {
 
     GLuint VAO, VBO;
 
+    std::vector<float> vertices;
     std::vector<patch> patches;
     std::vector<patch *> primitives;
-    std::vector<float> vertices;
     bvh_node *tree;
 
-    startup(patches, primitives, vertices, &tree, s, stat, &VAO, &VBO);
+    std::thread t1;
 
-    /* Radiosity and tone-mapping thread */
-    std::thread t1(radiate,
-                   std::ref(patches),
-                   std::ref(primitives),
-                   std::ref(vertices),
-                   &tree, s,
-                   std::ref(stat));
+    if (s.display_only) {
+        std::ifstream file("models/saved_data.bin", std::ios::binary);
+        file.seekg(0, std::ios::end);
+        long size = file.tellg();
+        file.seekg(0, std::ios::beg);
+        vertices.reserve(size);
+        file.read((char *) vertices.data(), size);
+        finished_radiosity = true;
+    } else {
+        startup(patches, primitives, vertices, &tree, s, stat, &VAO, &VBO);
+
+        /* Radiosity and tone-mapping thread */
+        t1 = std::thread(radiate,
+                         std::ref(patches),
+                         std::ref(primitives),
+                         std::ref(vertices),
+                         &tree, s,
+                         std::ref(stat));
+    }
 
     /* Main draw loop */
     while (glfwWindowShouldClose(window) == 0) {
@@ -223,8 +234,13 @@ int main(int argc, char **argv) {
         glfwSwapBuffers(window);
     }
 
+    if (!s.display_only) { t1.join(); }
 
-    t1.join();
+    if (s.save_result) {
+        std::ofstream file("models/saved_data.bin", std::ios::out | std::ios::binary);
+        file.write((char *) vertices.data(), vertices.size() * sizeof(float));
+        file.close();
+    }
 
     /* Clean up */
     glBindBuffer(GL_ARRAY_BUFFER, 0);
