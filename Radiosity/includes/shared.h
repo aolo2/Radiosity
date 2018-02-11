@@ -47,18 +47,15 @@ struct settings {
     float ERR;
     float FOV;
     float ASPECT_RATIO;
-    int RAD_ITERATIONS;
-    int FF_SAMPLES;
     long long TOTAL_RAYS;
-    int GATHER_RAYS;
-    int SHADOW_RAYS;
     glm::vec3 camera_pos;
     std::string mesh_path;
     bool display_only;
     bool save_result;
     bool show_stats;
-    bool debug;
+    bool verbose;
     bool invalid;
+    bool debug;
 };
 
 float intersect(const ray &r, const patch &p, float ERR);

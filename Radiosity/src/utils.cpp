@@ -14,15 +14,11 @@ void load_settings(const std::string &path, settings &s) {
          >> s.WINDOW_HEIGHT
          >> s.ERR
          >> s.FOV
-         >> s.RAD_ITERATIONS
-         >> s.FF_SAMPLES
          >> s.camera_pos.x
          >> s.camera_pos.y
          >> s.camera_pos.z
          >> s.mesh_path
-         >> s.TOTAL_RAYS
-         >> s.GATHER_RAYS
-         >> s.SHADOW_RAYS;
+         >> s.TOTAL_RAYS;
 
     s.ASPECT_RATIO =
             static_cast<float>(s.WINDOW_WIDTH) /
@@ -190,20 +186,30 @@ settings process_flags(int argc, char **argv) {
         } else {
             if (arg == "-l") {
                 s.display_only = true;
-            }
-
-            if (arg == "-s") {
+            } else if (arg == "-s") {
                 s.save_result = true;
-            }
-
-            if (arg == "-v") {
+            } else if (arg == "-stats") {
                 s.show_stats = true;
-            }
-
-            if (arg == "-d") {
+            } else if (arg == "-v") {
+                s.verbose = true;
+            } else if (arg == "-d") {
                 s.debug = true;
             }
         }
+    }
+
+    if (s.display_only && s.save_result) {
+        std::cout << "Both -l and -s flags set. Ignoring -s" << std::endl;
+        s.save_result = false;
+    }
+
+    if (s.verbose) {
+        std::cout << "Set flags: VERBOSE(-v) ";
+        if (s.display_only) { std::cout << "DISPLAY ONLY(-l) " << std::flush; }
+        if (s.save_result) { std::cout << "SAVE RESULT(-s) " << std::flush; }
+        if (s.show_stats) { std::cout << "SHOW STATS(-stats) " << std::flush; }
+        if (s.debug) { std::cout << "DEBUG MODE(-d) " << std::flush; }
+        std::cout << std::endl;
     }
 
     return s;

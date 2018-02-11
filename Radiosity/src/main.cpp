@@ -11,7 +11,7 @@ bool cam_interactive = false;
 bool first_call = true;
 double last_x, last_y;
 
-std::atomic<bool> finished_radiosity(false);
+static std::atomic<bool> finished_radiosity(false);
 
 /* Cursor movement fires this callback */
 void cursor_pos_callback(GLFWwindow *window, double xpos, double ypos) {
@@ -77,9 +77,9 @@ void startup(std::vector<patch> &patches,
 
     stat.events[EVENT::MESH_BEGIN] = glfwGetTime();
 
-    if (s.debug) { std::cout << "Loading mesh... " << std::flush; }
+    if (s.verbose) { std::cout << "Loading mesh... " << std::flush; }
     patches = load_mesh(s.mesh_path, stat);
-    if (s.debug) { std::cout << "DONE" << std::endl; }
+    if (s.verbose) { std::cout << "DONE" << std::endl; }
 
     stat.events[EVENT::MESH_END] = glfwGetTime();
 
@@ -89,16 +89,16 @@ void startup(std::vector<patch> &patches,
 
     stat.events[EVENT::BVH_BEGIN] = glfwGetTime();
 
-    if (s.debug) { std::cout << "Creating the BVH... " << std::flush; }
+    if (s.verbose) { std::cout << "Creating the BVH... " << std::flush; }
     *tree = bvh(primitives);
-    if (s.debug) { std::cout << "DONE" << std::endl; }
+    if (s.verbose) { std::cout << "DONE" << std::endl; }
 
     stat.events[EVENT::BVH_END] = glfwGetTime();
 
-    if (s.debug) { std::cout << "Initializing OpenGL buffers... " << std::flush; }
+    if (s.verbose) { std::cout << "Initializing OpenGL buffers... " << std::flush; }
     vertices = glify(primitives, true);
     init_buffers(VAO, VBO, vertices);
-    if (s.debug) { std::cout << "DONE" << std::endl; }
+    if (s.verbose) { std::cout << "DONE" << std::endl; }
 }
 
 void radiate(std::vector<patch> &patches,
@@ -111,20 +111,17 @@ void radiate(std::vector<patch> &patches,
     /* Local line radiosity */
     local_line(primitives, s, *tree, stat);
 
-    stat.events[EVENT::TONEMAP_BEGIN] = glfwGetTime();
+    /* Transform to OpenGL per-vertex format */
+    vertices = glify(primitives, false);
 
     /* Tone map */
-    if (s.debug) { std::cout << "Tone mapping... " << std::flush; }
-//    reinhard(primitives);
-    if (s.debug) { std::cout << "DONE" << std::endl; }
-
+    if (s.verbose) { std::cout << "Tone mapping... " << std::flush; }
+    stat.events[EVENT::TONEMAP_BEGIN] = glfwGetTime();
+    reinhard(vertices);
     stat.events[EVENT::TONEMAP_END] = glfwGetTime();
+    if (s.verbose) { std::cout << "DONE" << std::endl; }
 
-    /* Transform to OpenGL per-vertex format */
-    if (s.debug) { std::cout << "Updating OpenGL buffers... " << std::flush; }
-    vertices = glify(primitives, false);
     finished_radiosity = true;
-    if (s.debug) { std::cout << "DONE" << std::endl; }
 }
 
 int main(int argc, char **argv) {
@@ -168,6 +165,7 @@ int main(int argc, char **argv) {
     glDepthFunc(GL_LESS);
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glLineWidth(1.5f);
+    glEnable(GL_FRAMEBUFFER_SRGB);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -196,11 +194,13 @@ int main(int argc, char **argv) {
     if (s.display_only) {
         std::ifstream file("models/saved_data.bin", std::ios::binary);
         file.seekg(0, std::ios::end);
-        long size = file.tellg();
+        std::size_t size = file.tellg();
         file.seekg(0, std::ios::beg);
-        vertices.reserve(size);
+        vertices.resize(size);
         file.read((char *) vertices.data(), size);
-        finished_radiosity = true;
+        reinhard(vertices);
+        init_buffers(&VAO, &VBO, vertices);
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     } else {
         startup(patches, primitives, vertices, &tree, s, stat, &VAO, &VBO);
 
@@ -224,7 +224,15 @@ int main(int argc, char **argv) {
             update_buffers(&VAO, &VBO, vertices);
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
             finished_radiosity = false;
+
             if (s.show_stats) { output_stats(stat); }
+
+            if (s.save_result) {
+                if (s.verbose) { std::cout << "Saving to file... " << std::flush; }
+                std::ofstream file("models/saved_data.bin", std::ios::out | std::ios::binary);
+                file.write((char *) vertices.data(), vertices.size() * sizeof(float));
+                if (s.verbose) { std::cout << "DONE" << std::endl; }
+            }
         }
 
         glBindVertexArray(VAO);
@@ -234,12 +242,9 @@ int main(int argc, char **argv) {
         glfwSwapBuffers(window);
     }
 
-    if (!s.display_only) { t1.join(); }
-
-    if (s.save_result) {
-        std::ofstream file("models/saved_data.bin", std::ios::out | std::ios::binary);
-        file.write((char *) vertices.data(), vertices.size() * sizeof(float));
-        file.close();
+    if (!s.display_only) {
+        if (s.verbose) { std::cout << "Compute thread joined" << std::endl; }
+        t1.join();
     }
 
     /* Clean up */

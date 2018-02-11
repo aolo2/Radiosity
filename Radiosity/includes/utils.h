@@ -5,7 +5,7 @@
 #include "bvh.h"
 #include "stats.h"
 
-const std::set<std::string> ALLOWED_FLAGS{"-s", "-l", "-v", "-d"};
+const std::set<std::string> ALLOWED_FLAGS{"-stats", "-l", "-s", "-v", "-d"};
 
 void load_settings(const std::string &path, settings &s);
 

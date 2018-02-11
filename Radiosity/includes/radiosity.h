@@ -21,7 +21,7 @@ float form_factor(const patch *here, const patch *there,
                   const bvh_node *world, const std::vector<patch *> &primitives,
                   float ERR, int FF_SAMPLES);
 
-void reinhard(std::vector<patch *> &primitives);
+void reinhard(std::vector<float> &vertices);
 
 void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_node *world, stats &stat);
 

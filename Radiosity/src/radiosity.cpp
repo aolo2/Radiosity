@@ -148,27 +148,33 @@ void iteration(const bvh_node *world, const std::vector<patch *> &primitives,
     }
 }
 
-void reinhard(std::vector<patch *> &primitives) {
-    float N = primitives.size();
+void reinhard(std::vector<float> &vertices) {
+    std::size_t vert_count = vertices.size() / 6; // 3 coords + 3 colors
 
-    const glm::vec3 a = glm::vec3(0.18f); // TODO: wtf is mid-gray??
-    glm::vec3 product = glm::vec3(1.0f);
+    double log_space_sum[3] = {0.0, 0.0, 0.0};
+    double MIN_COLOR = 1e-5;
 
-    for (auto &p : primitives) {
-        product *= glm::vec3(
-                p->rad.x == 0 ? 1.0f : std::pow(p->rad.x, 1.0f / N),
-                p->rad.y == 0 ? 1.0f : std::pow(p->rad.y, 1.0f / N),
-                p->rad.z == 0 ? 1.0f : std::pow(p->rad.z, 1.0f / N));
+    for (int wave_len = 0; wave_len < 3; ++wave_len) {
+        for (std::size_t i = 0; i < vert_count; ++i) {
+            if (vertices[i * 6 + 3 + wave_len] > MIN_COLOR) {
+                log_space_sum[wave_len] += glm::log(vertices[i * 6 + 3 + wave_len]);
+            }
+        }
     }
 
-    glm::vec3 L_avg = product;
-
-    for (auto &p : primitives) {
-        p->rad = a / L_avg * p->rad;
+    double L_avg[3];
+    for (int wave_len = 0; wave_len < 3; ++wave_len) {
+        L_avg[wave_len] = glm::exp(1.0 / ((double) vert_count) * log_space_sum[wave_len]);
+        std::cout << L_avg[wave_len] << std::endl;
     }
 
-    for (auto &p : primitives) {
-        p->rad = p->rad / (glm::vec3(1.0f) + p->rad);
+    double mid_gray(0.18); // 18% middle gray
+
+    for (int wave_len = 0; wave_len < 3; ++wave_len) {
+        for (std::size_t i = 0; i < vert_count; ++i) {
+            vertices[i * 6 + 3 + wave_len] = (float) (mid_gray / L_avg[wave_len] * vertices[i * 6 + 3 + wave_len]);
+            vertices[i * 6 + 3 + wave_len] = vertices[i * 6 + 3 + wave_len] / (1.0f + vertices[i * 6 + 3 + wave_len]);
+        }
     }
 }
 
@@ -329,6 +335,45 @@ void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_n
 
     int iteration_count = 0;
 
+/*    GLuint dbg_VAO, dbg_VBO;
+    std::vector<float> ray_info = {
+            0.0f, 0.0f, 0.0f, // start pos
+            0.0f, 0.0f, 0.0f, // start color
+
+            0.0f, 0.0f, 0.0f, // end pos
+            0.0f, 0.0f, 0.0f  // end color
+    };
+
+    if (s.debug) {
+        init_buffers(&dbg_VAO, &dbg_VBO, ray_info);
+        glBindVertexArray(dbg_VAO);
+
+        if (s.debug) {
+            glm::vec3 ray_color(1.0f, 0.0f, 0.0f);
+            if (nearest.hit) { ray_color = glm::vec3(0.0f, 1.0f, 0.0f); }
+
+            ray_info = {x[0], x[1], x[2], ray_color[0], ray_color[1], ray_color[2]};
+
+            if (nearest.hit) {
+                ray_info.push_back(nearest.p->vertices[4].x);
+                ray_info.push_back(nearest.p->vertices[4].y);
+                ray_info.push_back(nearest.p->vertices[4].z);
+            } else {
+                glm::vec3 far_miss_point = sample.direction + sample.direction * 10000.0f;
+                ray_info.push_back(far_miss_point.x);
+                ray_info.push_back(far_miss_point.y);
+                ray_info.push_back(far_miss_point.z);
+            }
+
+            ray_info.push_back(ray_color[0]);
+            ray_info.push_back(ray_color[1]);
+            ray_info.push_back(ray_color[2]);
+
+            update_buffers(&dbg_VAO, &dbg_VBO, ray_info);
+            glDrawArrays(GL_LINES, 0, 2);
+        }
+    }*/
+
     /* Run the simulation for each wavelength */
     for (int wave_len = 0; wave_len < 3; ++wave_len) {
 
@@ -352,7 +397,11 @@ void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_n
             auto N_samples = (long long) (s.TOTAL_RAYS * total_unshot / total_power);
             float xi = unilateral(mt);
 
-            if (s.debug) { std::cout << "Unshot " << WAVES[wave_len] << ": " << total_unshot << "\r" << std::flush; }
+            if (s.verbose) {
+                std::cout << "Unshot "
+                          << WAVES[wave_len] << ": " << std::left << std::setw(15)
+                          << total_unshot << "\r" << std::flush;
+            }
 
             N_prev = 0;
             q = 0;
@@ -392,7 +441,7 @@ void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_n
             ++iteration_count;
         }
 
-        if (s.debug) { std::cout << std::endl; }
+        if (s.verbose) { std::cout << std::endl; }
     }
 
     for (auto p : primitives) {
