@@ -198,7 +198,6 @@ int main(int argc, char **argv) {
         file.seekg(0, std::ios::beg);
         vertices.resize(size);
         file.read((char *) vertices.data(), size);
-        reinhard(vertices);
         init_buffers(&VAO, &VBO, vertices);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     } else {

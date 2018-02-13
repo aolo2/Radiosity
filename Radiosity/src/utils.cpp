@@ -111,7 +111,7 @@ std::vector<patch> load_mesh(const std::string &path, stats &stat) {
     return patches;
 }
 
-std::vector<float> glify(const std::vector<patch *> &primitives, bool fill) {
+std::vector<float>  glify(const std::vector<patch *> &primitives, bool fill) {
     std::vector<float> vertices;
 
     for (const auto p : primitives) {

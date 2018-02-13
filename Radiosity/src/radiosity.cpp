@@ -152,19 +152,26 @@ void reinhard(std::vector<float> &vertices) {
     std::size_t vert_count = vertices.size() / 6; // 3 coords + 3 colors
 
     double log_space_sum[3] = {0.0, 0.0, 0.0};
-    double MIN_COLOR = 1e-5;
+    double MIN_COLOR = 1e-3;
+    double inv_n = 1.0 / (double) vert_count;
 
     for (int wave_len = 0; wave_len < 3; ++wave_len) {
         for (std::size_t i = 0; i < vert_count; ++i) {
             if (vertices[i * 6 + 3 + wave_len] > MIN_COLOR) {
-                log_space_sum[wave_len] += glm::log(vertices[i * 6 + 3 + wave_len]);
+                auto old = log_space_sum[wave_len];
+                log_space_sum[wave_len] += inv_n * glm::log(vertices[i * 6 + 3 + wave_len]);
+                if (log_space_sum[wave_len] == INF) {
+                    std::cout << old << " + " << vertices[i * 6 + 3 + wave_len] << std::endl;
+                    break;
+                }
             }
         }
     }
 
     double L_avg[3];
     for (int wave_len = 0; wave_len < 3; ++wave_len) {
-        L_avg[wave_len] = glm::exp(1.0 / ((double) vert_count) * log_space_sum[wave_len]);
+        std::cout << log_space_sum[wave_len] << std::endl;
+        L_avg[wave_len] = glm::exp(log_space_sum[wave_len]);
         std::cout << L_avg[wave_len] << std::endl;
     }
 
@@ -446,9 +453,15 @@ void local_line(std::vector<patch *> &primitives, const settings &s, const bvh_n
 
     for (auto p : primitives) {
         for (int wave_len = 0; wave_len < 3; wave_len++) {
-            p->colors[0][wave_len] =
-            p->colors[1][wave_len] =
-            p->colors[2][wave_len] = p->p_total[wave_len] / p->area;
+            if (p->area < 1e-2) {
+                p->colors[0][wave_len] =
+                p->colors[1][wave_len] =
+                p->colors[2][wave_len] = p->p_total[wave_len];
+            } else {
+                p->colors[0][wave_len] =
+                p->colors[1][wave_len] =
+                p->colors[2][wave_len] = p->p_total[wave_len] / p->area;
+            }
         }
     }
 

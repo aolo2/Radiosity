@@ -1,0 +1,12 @@
+[=========STATS=========]
+|      POLYGONS: 45930
+|        LIGHTS: 2
+|          RAYS: 25000000
+[=======================]
+|      PRE-INIT: 79.504ms
+|  MESH LOADING: 25.445ms
+|           BVH: 26.553ms
+|     RADIOSITY: 406.87sec
+|       PER-RAY: 0.0163ms
+|   TONEMAPPING: 6.4ms
+[=======================]
